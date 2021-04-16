@@ -1,0 +1,3 @@
+[submodule "fw/external/AFW"]
+	path = fw/external/AFW
+	url = git@github.com:kajusK/AFW.git

@@ -1,0 +1,5 @@
+/bin
+*.elf
+*.map
+*.bin
+src/board_gpio.h
