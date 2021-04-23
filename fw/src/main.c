@@ -65,21 +65,13 @@ static const uint8_t ttn_DevAddr[16] = TTN_DEV_ADDR;
 static const uint8_t ttn_NwkSkey[16] = TTN_NWKSKEY;
 static const uint8_t ttn_AppSkey[16] = TTN_APPSKEY;
 
-/** Address to store Lora counter value, first address, align to page boundary */
-#define LORA_TX_COUNTER_ADDR0 0xF000
-
-/**
- * Address to store Lora counter value, second address (offseted by smallest
- * erasable area from previous one
- */
-#define LORA_TX_COUNTER_ADDR1 (LORA_TX_COUNTER_ADDR0 + Flashd_GetPageSize())
-
-
 static gps_desc_t gps_desc;
 static ms5607_desc_t ms5607_desc;
 static rfm_desc_t rfm_desc;
 
-
+/** Address to store Lora counter value, defined in linker */
+extern const uint32_t counter1;
+extern const uint32_t counter2;
 
 /**
  * Set LoRa region based on recent known location
@@ -115,18 +107,16 @@ static void App_SetRegion(nmea_float_t gps_lat,
  */
 static void App_SaveTxCounter(uint32_t counter)
 {
-    uint32_t cnt1 = *((uint32_t *) LORA_TX_COUNTER_ADDR0);
-    uint32_t cnt2 = *((uint32_t *) LORA_TX_COUNTER_ADDR1);
     uint32_t addr;
 
-    if (cnt1 == (uint32_t) -1) {
-        addr = LORA_TX_COUNTER_ADDR0;
-    } else if (cnt2 == (uint32_t) -1) {
-        addr = LORA_TX_COUNTER_ADDR1;
-    } else if (cnt1 > cnt2) {
-        addr = LORA_TX_COUNTER_ADDR1;
+    if (counter1 == (uint32_t)-1) {
+        addr = (uint32_t)&counter1;
+    } else if (counter2 == (uint32_t)-1) {
+        addr = (uint32_t)&counter2;
+    } else if (counter1 > counter2) {
+        addr = (uint32_t)&counter2;
     } else {
-        addr = LORA_TX_COUNTER_ADDR0;
+        addr = (uint32_t)&counter1;
     }
     Flashd_WriteEnable();
     Flashd_ErasePage(addr);
@@ -141,21 +131,16 @@ static void App_SaveTxCounter(uint32_t counter)
  */
 static uint32_t App_LoadTxCounter(void)
 {
-    uint32_t cnt1 = *((uint32_t *) LORA_TX_COUNTER_ADDR0);
-    uint32_t cnt2 = *((uint32_t *) LORA_TX_COUNTER_ADDR1);
-
-    if (cnt1 == (uint32_t) -1 &&  cnt2 == (uint32_t) -1) {
+    if (counter1 == (uint32_t)-1 && counter2 == (uint32_t)-1) {
         return 0;
     }
-
-    if (cnt2 == (uint32_t) -1) {
-        return cnt1;
+    if (counter2 == (uint32_t)-1) {
+        return counter1;
     }
-
-    if (cnt1 > cnt2) {
-        return cnt1;
+    if (counter1 > counter2) {
+        return counter1;
     }
-    return cnt2;
+    return counter2;
 }
 
 static void App_Loop(void)

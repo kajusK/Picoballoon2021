@@ -20,10 +20,16 @@
 /* Define memory regions. */
 MEMORY
 {
-	rom (rx) : ORIGIN = 0x08000000, LENGTH = 64K
+	rom (rx) : ORIGIN = 0x08000000, LENGTH = 60K
 	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 8K
+
+	custom1(r) : ORIGIN = ORIGIN(rom) + LENGTH(rom), LENGTH = 2K
+	custom2(r) : ORIGIN = ORIGIN(custom1) + LENGTH(custom1), LENGTH = LENGTH(custom1)
 }
+
+/** Custom areas for LoRa TX counter storage */
+PROVIDE(counter1 = ORIGIN(custom1));
+PROVIDE(counter2 = ORIGIN(custom2));
 
 /* Include the common ld script. */
 INCLUDE cortex-m-generic.ld
-
