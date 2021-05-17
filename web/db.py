@@ -4,11 +4,11 @@ import sqlite3
 class Database:
 
     def __init__(self):
-        self.connection = sqlite3.connect('database.sqlite')
-        self.cursor = self.connection.cursor()
+        self.__connection = sqlite3.connect('database.sqlite')
+        self.__cursor = self.__connection.cursor()
 
     def create_database_structure(self):
-        self.cursor.execute('''
+        self.__cursor.execute('''
             CREATE TABLE IF NOT EXISTS data (
                 timestamp INTEGER,
                 freq REAL,
@@ -27,7 +27,7 @@ class Database:
                 json TEXT)''')
 
     def store_data(self, data):
-        self.cursor.execute(f'''
+        self.__cursor.execute(f'''
             INSERT INTO data VALUES (
             "{data['timestamp']}",
             "{data['freq']}",
@@ -44,4 +44,4 @@ class Database:
             "{data['loop_time_s']}",
             "{data['gps_fix']}",
             "{data}")''')
-        self.connection.commit()
+        self.__connection.commit()

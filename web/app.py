@@ -1,6 +1,6 @@
 # To do list:
-    # create sqlite database
-    # store data from cloud in database
+    # create sqlite database ✓
+    # store data from cloud in database ✓
         # estimate longitude and latitude
     # write tests
     # fill in Readme.md
@@ -12,7 +12,7 @@ import os
 from db import Database
 
 app = Flask(__name__)
-db = Database
+db = Database()
 
 
 def database_status():
