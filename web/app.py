@@ -7,8 +7,8 @@
     # display web content to user
         # add information points in map
 
-from flask import Flask, request
 import os
+from flask import Flask, request
 from db import Database
 
 app = Flask(__name__)
@@ -27,4 +27,6 @@ def endpoint():
     db.store_data(data)
 
 
-database_status()
+if __name__ == '__main__':
+    database_status()
+    app.run(debug=True)
