@@ -7,6 +7,7 @@ class Database:
         self.__connection = sqlite3.connect(f'{path}/database.sqlite')
         self.__connection.execute('pragma journal_mode=wal')
         self.__cursor = self.__connection.cursor()
+        self.create_database_structure()
 
     def create_database_structure(self):
         self.__cursor.execute('''
@@ -46,3 +47,10 @@ class Database:
             "{data['gps_fix']}",
             "{data}")''')
         self.__connection.commit()
+
+    def fetch_data(self):
+        data = self.__cursor.execute('SELECT * FROM data;').fetchall()
+        data_ls = []
+        for line in data:
+            data_ls.append(list(line))
+        return data_ls
