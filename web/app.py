@@ -14,10 +14,6 @@ from db import Database
 
 app = Flask(__name__)
 
-def database_status(db):
-    if not os.path.exists('database.sqlite'):
-        current_app.db.create_database_structure()
-
 
 @app.route('/endpoint', methods=['POST'])
 def endpoint():
@@ -32,5 +28,4 @@ if __name__ == '__main__':
     path = str(pathlib.Path().absolute())
     with app.app_context():                 # management of the application context
         current_app.db = Database(path)     # proxy to the application handling the current request
-        database_status(current_app.db)
     app.run(debug=True)
