@@ -6,9 +6,8 @@ from db import Database
 
 
 @pytest.fixture(scope="session")
-def db():
-    path = str(pathlib.Path().absolute())       # path to current directory
-    db = Database(path)
+def db(tmp_path):                       # temporary path
+    db = Database(tmp_path)
     db.create_database_structure()
     yield db
 
@@ -31,7 +30,7 @@ def test_db_private_attributes(db):
         assert db.__connection
 
 
-def test_endpoint_returns_200():
+def test_endpoint_returns_200(db):
     with app.test_client() as client:
         response = client.post('/endpoint', json={
             'timestamp': 12092021,
