@@ -8,14 +8,13 @@
         # add information points in map
 
 import os
+import pathlib
 from flask import Flask, request
 from db import Database
 
 app = Flask(__name__)
-db = Database()
 
-
-def database_status():
+def database_status(db):
     if not os.path.exists('database.sqlite'):
         db.create_database_structure()
 
@@ -25,8 +24,11 @@ def endpoint():
     '''Insert incoming data into database'''
     data = request.get_json(force=True)
     db.store_data(data)
+    return 200
 
 
 if __name__ == '__main__':
-    database_status()
+    path = str(pathlib.Path().absolute())
+    db = Database(path)
+    database_status(db)
     app.run(debug=True)
