@@ -3,8 +3,9 @@ import sqlite3
 
 class Database:
 
-    def __init__(self):
-        self.__connection = sqlite3.connect('database.sqlite')
+    def __init__(self, path):
+        self.__connection = sqlite3.connect(f'{path}/database.sqlite')
+        self.__connection.execute('pragma journal_mode=wal')
         self.__cursor = self.__connection.cursor()
 
     def create_database_structure(self):
