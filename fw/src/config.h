@@ -36,8 +36,12 @@
 #define TELEMETRY_PERIOD_MIN 30U
 /** Measure GPS position every nth telemetry window (1-255) */
 #define TELEMETRY_GPS_SKIP 4U
-/** Power off gps if fix not obtained within the given time frame */
-#define GPS_FIX_TIMEOUT_S (60*3)
+/** Measure GPS with long timeout every nth gps period */
+#define TELEMETRY_GPS_FULL_SKIP 8U
+/** Power off GPS if fix not obtained within the given time frame */
+#define GPS_FIX_TIMEOUT_S 10
+/** Power off GPS if fix was not obtained before after this time */
+#define GPS_FULL_TIMEOUT_S (5*60)
 
 #endif
 

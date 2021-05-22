@@ -36,6 +36,7 @@
 #include <hal/spi.h>
 #include <hal/uart.h>
 #include <hal/rtc.h>
+#include <hal/exti.h>
 #include <hal/power.h>
 #include <hal/flash.h>
 #include <utils/time.h>
@@ -87,14 +88,19 @@ static void App_SetRegion(nmea_float_t gps_lat,
     int16_t lon = gps_lon.num / gps_lon.scale;
 
     /* America */
-    if (lon > -170 && lon < 50) {
+    if (lon > -180 && lon < -50) {
         region = RFM_REGION_US902;
+        Log_Info("GPS", "Using US LoRa region");
     /* Australia, New Zealand */
     } else if  (lat > -50 && lat < -7 && lon > 100 && lon < 170) {
         region = RFM_REGION_AU915;
+        Log_Info("GPS", "Using AU LoRa region");
     /* Japan, Malaysia, etc. */
-    } else if (lon > 78 && lon < 160) {
+    } else if (lon > 87 && lon < 180 && lat < 50) {
         region = RFM_REGION_AS920;
+        Log_Info("GPS", "Using AS LoRa region");
+    } else {
+        Log_Info("GPS", "Using EU LoRa region");
     }
 
     RFM_SetLoraRegion(&rfm_desc, region);
@@ -143,6 +149,46 @@ static uint32_t App_LoadTxCounter(void)
     return counter2;
 }
 
+static void App_GpsOn(void)
+{
+    IOd_SetLine(LINE_GPS_ON, 1);
+}
+
+static void App_GpsOff(void)
+{
+    IOd_SetLine(LINE_GPS_ON, 0);
+    Gps_Backup(&gps_desc);
+}
+
+/**
+ * Wait for valid GPS data or timeout
+ * @param timeout_s     Timeout in seconds for waiting for fix
+ * @return True if have valid data, false if timed out
+ */
+static bool App_WaitGps(uint32_t timeout_s)
+{
+    uint32_t start_ts;
+    Log_Info("App", "Waiting for GPS");
+    EXTId_EnableEvent(PAD_GPS_FIX);
+
+    if (IOd_GetLine(LINE_GPS_FIX) != 1) {
+        /* Go to sleep until GPS fix is obtained or timeout */
+        RTCd_SetAlarmInSeconds(timeout_s, NULL);
+        Powerd_StopEvent();
+    }
+    EXTId_Disable(PAD_GPS_FIX);
+
+    if (IOd_GetLine(LINE_GPS_FIX) == 0) {
+        return false;
+    }
+    /* Wait for 1,5 second to get the whole NMEA data */
+    start_ts = millis();
+    while (Gps_Loop(&gps_desc) == NULL && (millis() - start_ts) < 1500) {
+        ;
+    }
+    return Gps_Get(&gps_desc) != NULL;
+}
+
 static void App_Loop(void)
 {
     telemetry_packet_t packet = {0};
@@ -151,8 +197,19 @@ static void App_Loop(void)
     uint32_t press_Pa = 0;
     uint32_t start_ts = millis();
     uint32_t tx_counter = App_LoadTxCounter();
+    bool use_gps = tx_counter % TELEMETRY_GPS_SKIP == 0;
+    uint32_t gps_timeout_s = GPS_FIX_TIMEOUT_S;
 
+
+    Adcd_Wakeup();
     Log_Info(NULL, "Measuring");
+    if (use_gps) {
+        if (tx_counter % (TELEMETRY_GPS_SKIP*TELEMETRY_GPS_FULL_SKIP) == 0) {
+            gps_timeout_s = GPS_FULL_TIMEOUT_S;
+        }
+        Log_Info("App", "Using GPS, timeout %d seconds", gps_timeout_s);
+        App_GpsOn();
+    }
 
     packet.bat_mv = Adcd_ReadMv(CHN_VBATT);
     packet.core_temp_c = Adcd_ReadTempDegC();
@@ -167,15 +224,16 @@ static void App_Loop(void)
     }
 
     /* wait for fix */
-    if (tx_counter % TELEMETRY_GPS_SKIP == 0) {
-        while (Gps_Loop(&gps_desc) == NULL &&
-                (millis() - start_ts) < GPS_FIX_TIMEOUT_S*1000) {
-            //TODO sleep until GPS message is assembled
-            ;
-        }
+    if (use_gps && !App_WaitGps(gps_timeout_s)) {
+        Log_Info("App", "Failed to get GPS position");
+        /* Fallback to EU region if GPS failed */
+        RFM_SetLoraRegion(&rfm_desc, RFM_REGION_EU863);
     }
     gps = Gps_Get(&gps_desc);
+    App_GpsOff();
+
     if (gps != NULL) {
+        Log_Info("App", "Got GPS");
         App_SetRegion(gps->lat, gps->lon);
         packet.gps_alt_m = gps->altitude_dm/10;
         packet.lat = ((float) gps->lat.num) / gps->lat.scale;
@@ -188,9 +246,10 @@ static void App_Loop(void)
     }
     packet.loop_time_s = (millis() - start_ts) / 1000;
 
+    Log_Info(NULL, "TX counter %d", tx_counter);
     Log_Info(NULL, "Pressure %d Pa", packet.press_daPa*10);
     Log_Info(NULL, "Temperature %d C", packet.temp_dc/10);
-    Log_Info(NULL, "Core temp %d C", packet.core_temp_c);
+    Log_Info(NULL, "Core temp %d C", (int32_t)packet.core_temp_c);
     Log_Info(NULL, "Battery voltage %d mV", packet.bat_mv);
     Log_Info(NULL, "GPS alt %d", packet.gps_alt_m);
     Log_Info(NULL, "Loop time %d", packet.loop_time_s);
@@ -211,8 +270,6 @@ static void lora_send_cb(const uint8_t *data, size_t len)
 
 int main(void)
 {
-    struct tm tm;
-
     /* Initialize clock system, IO pins and systick */
     IOd_Init();
     Time_Init();
@@ -226,10 +283,10 @@ int main(void)
 
     I2Cd_Init(1, false);
     SPId_Init(1, SPID_PRESC_2, SPI_MODE_0);
-    UARTd_Init(USART_GPS_TXD, 9600);
     RTCd_Init(false);
     Adcd_Init();
 
+    UARTd_Init(USART_GPS_TXD, 9600);
     Gps_Init(&gps_desc, USART_GPS_TXD);
     if (!MS5607_Init(&ms5607_desc, 1, MS5607_ADDR_1)) {
         Log_Error(NULL, "MS5607 pressure sensor not responding");
@@ -242,6 +299,8 @@ int main(void)
     RFM_SetLoraRegion(&rfm_desc, RFM_REGION_EU863);
     RFM_SetLoraParams(&rfm_desc, RFM_BW_125k, RFM_SF_10);
     RFM_SetPowerDBm(&rfm_desc, 17);
+    EXTId_SetMux(LINE_GPS_FIX);
+    EXTId_SetEdge(PAD_GPS_FIX, EXTID_RISING);
 
     Log_Info(NULL, "System initialized, running main loop");
     Log_SetLevel(LOG_ERROR);
@@ -249,36 +308,14 @@ int main(void)
     /* ================ TODO ================ */
     /* debugging purposes only, remove for production */
     Log_SetLevel(LOG_DEBUG);
+    delay_ms(5000);
     /* ================ TODO ================ */
+
     while (1) {
         App_Loop();
-        /* Don't have wakeup timer, use alarm, only hour, min, sec used */
-        RTCd_GetTime(&tm);
-        /*
-        tm.tm_sec += 10;
-        if (tm.tm_sec >= 60) {
-            tm.tm_sec %= 60;
-            tm.tm_min += 1;
-        }
-        if (tm.tm_min >= 60) {
-            tm.tm_min = 0;
-            tm.tm_hour += 1;
-            tm.tm_hour %= 24;
-        }
-        */
-        Log_Info(NULL, "Start at %d %d", tm.tm_hour, tm.tm_min);
-        if (tm.tm_min + (TELEMETRY_PERIOD_MIN % 60) >= 60) {
-            tm.tm_hour += 1;
-        }
-        tm.tm_hour = (tm.tm_hour + TELEMETRY_PERIOD_MIN / 60) % 24;
-        tm.tm_min = (tm.tm_min + TELEMETRY_PERIOD_MIN) % 60;
-        Log_Info(NULL, "Start at %d %d", tm.tm_hour, tm.tm_min);
-
-        Log_Info(NULL, "Sleeping for %d minutes", TELEMETRY_PERIOD_MIN);
-        RTCd_SetAlarm(&tm, NULL);
-        Powerd_Off();
-        Log_Error(NULL, "Failed to sleep");
-        Powerd_Reboot();
+        RTCd_SetAlarmInSeconds(TELEMETRY_PERIOD_MIN*60, NULL);
+        Powerd_Stop();
+        Log_Error(NULL, "Failed to power off the MCU!");
     }
 }
 
