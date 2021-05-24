@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="">
+    <title>Picoballoon 2021</title>
+    <script src="https://api.mapy.cz/loader.js"></script>
+    <script type="text/javascript">Loader.lang = "en"; Loader.load()</script>
+</head>
+
+<body>
+    <h1> Picoballoon 2021 </h1>
+    <br><br>
+        <div id="mapa" style="width:600px; height:400px;"></div>
+        <script type="text/javascript">
+            // default map
+            var center = SMap.Coords.fromWGS84(16.606837, 49.195060);
+            var map = new SMap(JAK.gel("mapa"), center, 10);
+            map.addDefaultLayer(SMap.DEF_BASE).enable();
+            map.addDefaultControls();
+
+            // add new layer for markers
+            var layer = new SMap.Layer.Marker();
+            map.addLayer(layer);
+            layer.enable();
+
+            // card to marker
+            var card = new SMap.Card();
+            card.getHeader().innerHTML = "<strong>Brno - Observatory </strong>";
+            card.getBody().innerHTML = "Launch at 10:00 28.06.2021";
+
+            // marker
+            pos = SMap.Coords.fromWGS84(16.5838333333333333, 49.2041388888888889);
+            var marker = new SMap.Marker(pos, "StartingPoint", {});
+            marker.decorate(SMap.Marker.Feature.Card, card);
+            layer.addMarker(marker);
+
+        </script>
+</body>
+</html>
+
+
