@@ -2,17 +2,21 @@
     # create sqlite database ✓
     # store data from cloud in database ✓
         # estimate longitude and latitude
-    # write tests
+    # write tests ✓
     # fill in Readme.md
     # display web content to user
         # add information points in map
 
 import os
 import pathlib
-from flask import Flask, request, current_app, Response
+from flask import Flask, request, current_app, Response, render_template
 from db import Database
 
 app = Flask(__name__)
+
+@app.route('/', methods=['GET'])
+def index():
+    return render_template('index.html')
 
 
 @app.route('/endpoint', methods=['POST'])
