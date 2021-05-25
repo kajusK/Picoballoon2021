@@ -4,7 +4,7 @@ import sqlite3
 class Database:
 
     def __init__(self, path):
-        self.__connection = sqlite3.connect(f'{path}/database.sqlite')
+        self.__connection = sqlite3.connect(f'{path}/database.sqlite',  check_same_thread=False)
         self.__connection.execute('pragma journal_mode=wal')
         self.__cursor = self.__connection.cursor()
         self.create_database_structure()
@@ -54,3 +54,9 @@ class Database:
         for line in data:
             data_ls.append(list(line))
         return data_ls
+
+    def fetch_data_markers(self):
+        data = self.__cursor.execute('''
+            SELECT timestamp, temp_c, battery_mv, alt_m, lon, lat
+            FROM data;''').fetchall()
+        return data

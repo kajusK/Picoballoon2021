@@ -29,16 +29,21 @@
 
             // card to marker
             var card = new SMap.Card();
-            card.getHeader().innerHTML = "<strong>Brno - Observatory </strong>";
-            card.getBody().innerHTML = "Launch at 10:00 28.06.2021";
+            card.setSize(210, 160);     // width, height
+            card.getHeader().innerHTML =  "<strong> {{ time }} </strong>";
+            card.getBody().innerHTML = "{{ card_body }}";
 
             // marker
-            pos = SMap.Coords.fromWGS84(16.5838333333333333, 49.2041388888888889);
-            var marker = new SMap.Marker(pos, "StartingPoint", {});
+            pos = SMap.Coords.fromWGS84({{ lon }}, {{ lat }});
+            var marker = new SMap.Marker(pos, "{{ marker_id }}", {});
             marker.decorate(SMap.Marker.Feature.Card, card);
             layer.addMarker(marker);
 
+            // card_header, card_body, marker_pos, marker_name
         </script>
+        <br><br>
+        <!-- image of probe    -->
+        <img src="{{ url_for('static', filename='probe.jpg') }}", style="width:600px; height:400px;">
 </body>
 </html>
 
