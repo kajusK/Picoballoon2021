@@ -15,13 +15,13 @@ def app(db):
     from flask import current_app
     from app import app
     with app.app_context():
-        current_app.db = db
+        current_app.db = db     # replace current_app db with temporary db
     return app
 
 
 @pytest.fixture
 def client(app):
-    with app.test_client() as client:
+    with app.test_client() as client:       # test client
         yield client
 
 
