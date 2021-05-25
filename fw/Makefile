@@ -19,6 +19,9 @@ FPU = -msoft-float
 # STM32F7
 #FPU = -mfloat-abi=hard -mfpu=fpv5-sp-d16
 
+# MCU definition for ADC mcu specific code
+MCU = STM32F051
+
 
 # sources directory
 SRCDIR = src
@@ -77,7 +80,7 @@ CSTD = -std=gnu11
 OPT = -O0
 OPENCM3_LIB = opencm3_$(shell echo $(FAMILY) | tr '[:upper:]' '[:lower:]')
 OPENCM3_LIB_PATH = $(OPENCM3_DIR)/lib/lib$(OPENCM3_LIB).a
-ARCH_FLAGS = -mthumb $(FPU) -mcpu=$(CPU) -D$(FAMILY)
+ARCH_FLAGS = -mthumb $(FPU) -mcpu=$(CPU) -D$(FAMILY) -D$(MCU)
 CFLAGS = -Wall -Wextra -Wstrict-prototypes -Wundef -Wshadow -Wredundant-decls \
 	-Wno-missing-field-initializers -Wmissing-prototypes -pedantic \
 	-fno-common -ffunction-sections -fdata-sections  \

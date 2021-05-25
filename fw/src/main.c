@@ -62,7 +62,7 @@ typedef struct {
 } __attribute__((packed)) telemetry_packet_t;
 
 /** The Thing Network auth data */
-static const uint8_t ttn_DevAddr[16] = TTN_DEV_ADDR;
+static const uint8_t ttn_DevAddr[4] = TTN_DEV_ADDR;
 static const uint8_t ttn_NwkSkey[16] = TTN_NWKSKEY;
 static const uint8_t ttn_AppSkey[16] = TTN_APPSKEY;
 
@@ -174,7 +174,7 @@ static bool App_WaitGps(uint32_t timeout_s)
     if (IOd_GetLine(LINE_GPS_FIX) != 1) {
         /* Go to sleep until GPS fix is obtained or timeout */
         RTCd_SetAlarmInSeconds(timeout_s, NULL);
-        Powerd_StopEvent();
+        Powerd_Stop();
     }
     EXTId_Disable(PAD_GPS_FIX);
 
@@ -201,7 +201,6 @@ static void App_Loop(void)
     uint32_t gps_timeout_s = GPS_FIX_TIMEOUT_S;
 
 
-    Adcd_Wakeup();
     Log_Info(NULL, "Measuring");
     if (use_gps) {
         if (tx_counter % (TELEMETRY_GPS_SKIP*TELEMETRY_GPS_FULL_SKIP) == 0) {
@@ -211,6 +210,7 @@ static void App_Loop(void)
         App_GpsOn();
     }
 
+    Adcd_UpdateVdda();
     packet.bat_mv = Adcd_ReadMv(CHN_VBATT);
     packet.core_temp_c = Adcd_ReadTempDegC();
     Adcd_Sleep();
@@ -314,7 +314,7 @@ int main(void)
     while (1) {
         App_Loop();
         RTCd_SetAlarmInSeconds(TELEMETRY_PERIOD_MIN*60, NULL);
-        Powerd_Stop();
+        Powerd_Off();
         Log_Error(NULL, "Failed to power off the MCU!");
     }
 }
