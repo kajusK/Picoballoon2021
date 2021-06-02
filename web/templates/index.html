@@ -14,7 +14,9 @@
 <body>
     <h1> Picoballoon 2021 </h1>
     <br><br>
+        <div>{{data_for_markers}}</div>
         <div id="mapa" style="width:600px; height:400px;"></div>
+        <script> var data_for_markers = {{ data_for_markers|tojson }}; </script>
         <script type="text/javascript">
             // default map
             var center = SMap.Coords.fromWGS84(16.606837, 49.195060);
@@ -26,20 +28,22 @@
             var layer = new SMap.Layer.Marker();
             map.addLayer(layer);
             layer.enable();
-
-            // card to marker
-            var card = new SMap.Card();
-            card.setSize(210, 160);     // width, height
-            card.getHeader().innerHTML =  "<strong> {{ time }} </strong>";
-            card.getBody().innerHTML = "{{ card_body }}";
-
-            // marker
-            pos = SMap.Coords.fromWGS84({{ lon }}, {{ lat }});
-            var marker = new SMap.Marker(pos, "{{ marker_id }}", {});
-            marker.decorate(SMap.Marker.Feature.Card, card);
-            layer.addMarker(marker);
-
-            // card_header, card_body, marker_pos, marker_name
+            // loop for markers
+            for (const data of data_for_markers){
+                // unpacking
+                let marker_id, time, card_body, lon, lat;
+                [marker_id, time, card_body, lon, lat] = data;
+                // card properties
+                var card = new SMap.Card();
+                card.setSize(210, 160);     // width, height
+                card.getHeader().innerHTML =  time;
+                card.getBody().innerHTML = card_body;
+                // marker
+                pos = SMap.Coords.fromWGS84(lon, lat);
+                var marker = new SMap.Marker(pos, marker_id, {});
+                marker.decorate(SMap.Marker.Feature.Card, card);
+                layer.addMarker(marker);
+            }
         </script>
         <br><br>
         <!-- image of probe    -->

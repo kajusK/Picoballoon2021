@@ -29,15 +29,16 @@ def index():
         - time
         - card_body = information about temperature, battery, altitude, longitude and latitude
     '''
-    data_for_markers = current_app.db.fetch_data_markers()
-    for i, data in enumerate(data_for_markers):
+    data = current_app.db.fetch_data_markers()
+    data_for_markers = []
+    for i, data in enumerate(data):
         timestamp, temp_c, battery_mv, alt_m, lon, lat = data
         marker_id = i
         time = datetime.fromtimestamp(timestamp).strftime("%H:%M on %b %d.")
         card_body = f'- - - - - - - - - - - - - - - - - => temperature: {round(temp_c, 1)}°C => probe battery: {round(battery_mv, 0)} mV => altitude: {round(alt_m, 0)} metres => longitude: {round(lon, 5)} => latitude: {round(lat, 5)}'
+        data_for_markers.append([marker_id, time, card_body, lon, lat])
     return render_template(
-        'index.html', marker_id=marker_id, lon=lon, lat=lat,
-        time=time, card_body=card_body, data=data_for_markers)
+        'index.html', data_for_markers=data_for_markers)
 
 
 @app.route('/endpoint', methods=['POST'])
