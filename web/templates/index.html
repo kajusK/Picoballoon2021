@@ -18,32 +18,48 @@
         <div id="mapa" style="width:600px; height:400px;"></div>
         <script> var data_for_markers = {{ data_for_markers|tojson }}; </script>
         <script type="text/javascript">
-            // default map
+            // set map
             var center = SMap.Coords.fromWGS84(16.606837, 49.195060);
             var map = new SMap(JAK.gel("mapa"), center, 10);
             map.addDefaultLayer(SMap.DEF_BASE).enable();
             map.addDefaultControls();
 
-            // add new layer for markers
-            var layer = new SMap.Layer.Marker();
-            map.addLayer(layer);
-            layer.enable();
-            // loop for markers
+            // layers for markers and route
+            var layer_markers = new SMap.Layer.Marker();
+            var layer_route = new SMap.Layer.Geometry();
+            map.addLayer(layer_markers);
+            map.addLayer(layer_route);
+            layer_markers.enable();
+            layer_route.enable();
+            var route = []
+
+            // loop for adding markers to map and fill in route
             for (const data of data_for_markers){
-                // unpacking
+                // unpack
                 let marker_id, time, card_body, lon, lat;
                 [marker_id, time, card_body, lon, lat] = data;
-                // card properties
+                // set card properties
                 var card = new SMap.Card();
                 card.setSize(210, 160);     // width, height
                 card.getHeader().innerHTML =  time;
                 card.getBody().innerHTML = card_body;
-                // marker
+                // add marker
                 pos = SMap.Coords.fromWGS84(lon, lat);
                 var marker = new SMap.Marker(pos, marker_id, {});
                 marker.decorate(SMap.Marker.Feature.Card, card);
-                layer.addMarker(marker);
+                layer_markers.addMarker(marker);
+                // add position to route
+                route.push(pos);
+
             }
+            // display route
+            var options_route = {
+                color: "#3e3838",
+                width: 3
+            };
+            var polyline = new SMap.Geometry(SMap.GEOMETRY_POLYLINE, null, route, options_route);
+            layer_route.addGeometry(polyline);
+
         </script>
         <br><br>
         <!-- image of probe    -->
