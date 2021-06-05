@@ -34,8 +34,6 @@ class Database:
             "{data['timestamp']}",
             "{data['freq']}",
             "{data['rssi']}",
-            "{data['estimated_lat']}",
-            "{data['estimated_lon']}",
             "{data['pressure_pa']}",
             "{data['temp_c']}",
             "{data['core_temp_c']}",
@@ -48,14 +46,20 @@ class Database:
             "{data}")''')
         self.__connection.commit()
 
-    def fetch_data(self):
+    def fetch_all_data(self):
         data = self.__cursor.execute('SELECT * FROM data;').fetchall()
         data_ls = []
         for line in data:
             data_ls.append(list(line))
         return data_ls
 
-    def fetch_data_markers(self):
+    def fetch_data_for_markers(self):
+        data = self.__cursor.execute('''
+            SELECT timestamp, temp_c, battery_mv, alt_m, lon, lat
+            FROM data;''').fetchall()
+        return data
+
+    def fetch_data_for_table(self):
         data = self.__cursor.execute('''
             SELECT timestamp, temp_c, battery_mv, alt_m, lon, lat
             FROM data;''').fetchall()
