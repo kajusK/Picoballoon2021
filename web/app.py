@@ -10,8 +10,9 @@
             # display map ✓
             # send data to marker ✓
             # add multiple markers ✓
-            # add trajectory
-        # display picture ✓
+            # add trajectory ✓
+            # adjust size according to balloon route
+        # display picture
         # display basic info
 
 import pathlib
@@ -24,21 +25,30 @@ app = Flask(__name__)
 @app.route('/', methods=['GET'])
 def index():
     '''
-    Send data to markers and their cards, specifically:
+    Provide data (a list of lists) to markers and their cards, specifically:
         - marker_id = number of a database entry (starting from 0)
         - longitude, latitude
         - time
         - card_body = information about temperature, battery, altitude, longitude and latitude
+    Provide data (a list of lists) for a summary table and graphs.
     '''
-    data = current_app.db.fetch_data_for_markers()
+    data_for_markers_raw = current_app.db.fetch_data_for_markers()
     data_for_markers = []
-    for i, data in enumerate(data):
+    for i, data in enumerate(data_for_markers_raw):
         timestamp, temp_c, battery_mv, alt_m, lon, lat = data
         marker_id = i
-        time = datetime.fromtimestamp(timestamp).strftime("%H:%M on %b %d.")
+        time = datetime.fromtimestamp(timestamp).strftime("%d.%m.%Y %H:%M")
         card_body = f'- - - - - - - - - - - - - - - - - => temperature: {round(temp_c, 1)}°C => probe battery: {round(battery_mv, 0)} mV => altitude: {round(alt_m, 0)} metres => longitude: {round(lon, 5)} => latitude: {round(lat, 5)}'
         data_for_markers.append([marker_id, time, card_body, lon, lat])
-    return render_template('index.html', data_for_markers=data_for_markers)
+
+    data_for_table = current_app.db.fetch_all_data()
+    for row in data_for_table:
+        timestamp = row[0]
+        row[0] = datetime.fromtimestamp(timestamp).strftime("%d.%m.%Y %H:%M")
+
+    return render_template('index.html',
+                           data_for_markers=data_for_markers,
+                           data_for_table=data_for_table)
 
 
 @app.route('/endpoint', methods=['POST'])
