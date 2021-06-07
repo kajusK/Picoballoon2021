@@ -5,85 +5,109 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
     <title>Picoballoon 2021</title>
     <script src="https://api.mapy.cz/loader.js"></script>
     <script type="text/javascript">Loader.lang = "en"; Loader.load()</script>
 </head>
 
 <body>
-    <h1> Picoballoon 2021 </h1>
-    <br><br>
-        <div>{{data_for_markers}}</div>
-        <div id="mapa" style="width:600px; height:400px;"></div>
-        <script> var data_for_markers = {{ data_for_markers|tojson }}; </script>
-        <script type="text/javascript">
-            // set map
-            var center = SMap.Coords.fromWGS84(16.606837, 49.195060);
-            var map = new SMap(JAK.gel("mapa"), center, 10);
-            map.addDefaultLayer(SMap.DEF_BASE).enable();
-            map.addDefaultControls();
-
-            // layers for markers and route
-            var layer_markers = new SMap.Layer.Marker();
-            var layer_route = new SMap.Layer.Geometry();
-            map.addLayer(layer_markers);
-            map.addLayer(layer_route);
-            layer_markers.enable();
-            layer_route.enable();
-            var route = []
-
-            // loop for adding markers to map and fill in route
-            for (const data of data_for_markers){
-                // unpack
-                let marker_id, time, card_body, lon, lat;
-                [marker_id, time, card_body, lon, lat] = data;
-                // set card properties
-                var card = new SMap.Card();
-                card.setSize(210, 160);     // width, height
-                card.getHeader().innerHTML =  time;
-                card.getBody().innerHTML = card_body;
-                // add marker
-                pos = SMap.Coords.fromWGS84(lon, lat);
-                var marker = new SMap.Marker(pos, marker_id, {});
-                marker.decorate(SMap.Marker.Feature.Card, card);
-                layer_markers.addMarker(marker);
-                // add position to route
-                route.push(pos);
-
-            }
-            // display route
-            var options_route = {
-                color: "#3e3838",
-                width: 3
-            };
-            var polyline = new SMap.Geometry(SMap.GEOMETRY_POLYLINE, null, route, options_route);
-            layer_route.addGeometry(polyline);
-
-        </script>
+    <div class="container">
         <br><br>
-        <div>{{data_for_table}}</div>
-        <table border="2" cellpadding="5" cellspacing="4">
-            <tr><th>Time</th><th>Frequency</th><th>RSSI</th><th>Pressure (Pa)</th><th>Outside temperature</th>
-            <th>Temperature of core</th><th>Altitude (m)</th><th>Latitude</th><th>Longitude</th><th>Battery (mV)</th></tr>
-            {% for item in data_for_table %}
-            <tr>
-                <td>{{item[0]}}</td>
-                <td>{{item[1]}}</td>
-                <td>{{item[2]}}</td>
-                <td>{{item[3]}}</td>
-                <td>{{item[4]}}</td>
-                <td>{{item[5]}}</td>
-                <td>{{item[6]}}</td>
-                <td>{{item[7]}}</td>
-                <td>{{item[8]}}</td>
-                <td>{{item[9]}}</td>
-            </td>
-            {% endfor %}
-        </table>
+        <h1 class="text-center"> Picoballoon 2021 </h1>
         <br><br>
-        <!-- image of probe    -->
-        <img src="{{ url_for('static', filename='probe.jpg') }}", style="width:600px; height:400px;">
+        <div class="row">
+            <div class="col-sm-6">
+                <div id="mapa" style="width:100%; height:500px;" class="smap smap-defaults"></div>
+                <script> var data_for_markers = {{ data_for_markers|tojson }}; </script>
+                <script type="text/javascript">
+                    // set map
+                    var center = SMap.Coords.fromWGS84(16.60796, 49.19522);
+                    var map = new SMap(JAK.gel("mapa"), center, 10);
+                    map.addDefaultLayer(SMap.DEF_BASE).enable();
+                    map.addDefaultControls();
+
+                    // layers for markers and route
+                    var layer_markers = new SMap.Layer.Marker();
+                    var layer_route = new SMap.Layer.Geometry();
+                    map.addLayer(layer_markers);
+                    map.addLayer(layer_route);
+                    layer_markers.enable();
+                    layer_route.enable();
+                    var route = [];
+
+                    // loop for adding markers to map and fill in route
+                    for (const data of data_for_markers){
+                        // unpack
+                        let marker_id, time, card_body, lon, lat;
+                        [marker_id, time, card_body, lon, lat] = data;
+                        // set card properties
+                        var card = new SMap.Card();
+                        card.setSize(250, 242);     // width, height
+                        card.getHeader().innerHTML =  time;
+                        card.getBody().innerHTML = card_body;
+                        // add marker
+                        pos = SMap.Coords.fromWGS84(lon, lat);
+                        var marker = new SMap.Marker(pos, marker_id, {});
+                        marker.decorate(SMap.Marker.Feature.Card, card);
+                        layer_markers.addMarker(marker);
+                        // add position to route
+                        route.push(pos);
+
+                    }
+                    // display route
+                    var options_route = {
+                        color: "#3e3838",
+                        width: 3
+                    };
+                    var polyline = new SMap.Geometry(SMap.GEOMETRY_POLYLINE, null, route, options_route);
+                    layer_route.addGeometry(polyline);
+
+                    var centered_map = map.computeCenterZoom(route);  // center map, so all markers are visible
+                    map.setCenterZoom(centered_map[0], centered_map[1]);
+
+                </script>
+                <p>{{data_for_markers}}</p>
+                <!-- image of probe    -->
+                <img src="{{ url_for('static', filename='probe.jpg') }}" class="img-fluid" alt="Responsive image">
+            </div>
+
+            <div class="col-sm-6">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm caption-top">
+                        <thead class="table table-light">
+                            <caption>Summary table</caption>
+                        <tr>
+                            <th scope="col">Time</th>
+                            <th scope="col">Pressure</th>
+                            <th scope="col">Temperature</th>
+                            <th scope="col">Altitude (m)</th>
+                            <th scope="col">Latitude</th>
+                            <th scope="col">Longitude</th>
+                            <th scope="col">Battery (V)</th>
+                        </tr>
+                        </thead>
+                        {% for item in data_for_table %}
+                        <tbody>
+                        <tr>
+                            <td>{{item[0]}}</td>
+                            <td>{{item[1]}}</td>
+                            <td>{{item[2]}}</td>
+                            <td>{{item[3]}}</td>
+                            <td>{{item[4]}}</td>
+                            <td>{{item[5]}}</td>
+                            <td>{{item[6]}}</td>
+                        </tr>
+                        </tbody>
+                        {% endfor %}
+                    </table>
+                </div>
+                <div>{{data_for_table}}</div>
+            </div>
+
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-gtEjrD/SeCtmISkJkNUaaKMoLD0//ElJ19smozuHV6z3Iehds+3Ulb9Bn9Plx0x4" crossorigin="anonymous"></script>
 </body>
 </html>
 
