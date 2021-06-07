@@ -13,10 +13,6 @@ class Database:
         self.__cursor.execute('''
             CREATE TABLE IF NOT EXISTS data (
                 timestamp INTEGER,
-                freq REAL,
-                rssi INTEGER,
-                estimated_lat REAL,
-                estimated_lon REAL,
                 pressure_pa INTEGER,
                 temp_c REAL,
                 core_temp_c REAL,
@@ -32,8 +28,6 @@ class Database:
         self.__cursor.execute(f'''
             INSERT INTO data VALUES (
             "{data['timestamp']}",
-            "{data['freq']}",
-            "{data['rssi']}",
             "{data['pressure_pa']}",
             "{data['temp_c']}",
             "{data['core_temp_c']}",
@@ -53,14 +47,7 @@ class Database:
             data_ls.append(list(line))
         return data_ls
 
-    def fetch_data_for_markers(self):
+    def fetch_data_for_graph(self):
         data = self.__cursor.execute('''
-            SELECT timestamp, temp_c, battery_mv, alt_m, lon, lat
-            FROM data;''').fetchall()
-        return data
-
-    def fetch_data_for_table(self):
-        data = self.__cursor.execute('''
-            SELECT timestamp, temp_c, battery_mv, alt_m, lon, lat
-            FROM data;''').fetchall()
+            SELECT timestamp, temp_c, alt_m FROM data;''').fetchall()
         return data
