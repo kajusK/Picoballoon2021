@@ -19,7 +19,7 @@
         <div class="row">
             <div class="col-sm-6">
                 <div id="mapa" style="width:100%; height:500px;" class="smap smap-defaults"></div>
-                <script> var data_for_markers = {{ data_for_markers|tojson }}; </script>
+                <script> var data_markers = {{ data_markers|tojson }}; </script>
                 <script type="text/javascript">
                     // set map
                     var center = SMap.Coords.fromWGS84(16.60796, 49.19522);
@@ -37,7 +37,7 @@
                     var route = [];
 
                     // loop for adding markers to map and fill in route
-                    for (const data of data_for_markers){
+                    for (const data of data_markers){
                         // unpack
                         let marker_id, time, card_body, lon, lat;
                         [marker_id, time, card_body, lon, lat] = data;
@@ -67,7 +67,7 @@
                     map.setCenterZoom(centered_map[0], centered_map[1]);
 
                 </script>
-                <p>{{data_for_markers}}</p>
+                <p>{{data_markers}}</p>
                 <!-- image of probe    -->
                 <img src="{{ url_for('static', filename='probe.jpg') }}" class="img-fluid" alt="Responsive image">
             </div>
@@ -78,16 +78,16 @@
                         <thead class="table table-light">
                             <caption>Summary table</caption>
                         <tr>
-                            <th scope="col">Time</th>
-                            <th scope="col">Pressure</th>
-                            <th scope="col">Temperature</th>
-                            <th scope="col">Altitude (m)</th>
-                            <th scope="col">Latitude</th>
-                            <th scope="col">Longitude</th>
-                            <th scope="col">Battery (V)</th>
+                            <th scope="col" class="text-center">Time</th>
+                            <th scope="col" class="text-center">Pressure</th>
+                            <th scope="col" class="text-center">Temperature</th>
+                            <th scope="col" class="text-center">Altitude</th>
+                            <th scope="col" class="text-center">Latitude</th>
+                            <th scope="col" class="text-center">Longitude</th>
+                            <th scope="col" class="text-center">Battery</th>
                         </tr>
                         </thead>
-                        {% for item in data_for_table %}
+                        {% for item in data_table %}
                         <tbody>
                         <tr>
                             <td>{{item[0]}}</td>
@@ -102,7 +102,7 @@
                         {% endfor %}
                     </table>
                 </div>
-                <div>{{data_for_table}}</div>
+                <div>{{data_table}}</div>
             </div>
 
     </div>
