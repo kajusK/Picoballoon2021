@@ -2,7 +2,7 @@
     # create sqlite database ✓
     # store data from cloud in database ✓
         # adjust format to correspond actual data
-        # estimate altitude from pressure
+        # estimate altitude from pressure ✓ --> need to be checked
     # write tests ✓
     # fill in Readme.md
     # display web content to user
@@ -12,12 +12,12 @@
             # add multiple markers ✓
             # add trajectory ✓
             # adjust size according to balloon route ✓
-        # display picture ✓
+        # display picture ✓ --> old one!
         # display summary table ✓
         # display graphs of temperature and altitude in time
-        # display basic info
+        # display basic info ✓ --> lorem for now
         # make index.html responsive ✓
-        # make index.html pretty
+        # make index.html pretty ✓
 
 import pathlib
 from datetime import datetime
@@ -67,6 +67,8 @@ def provide_data():
             temp = '{:.1f} °C'.format(core_temp)
         else:
             temp = '{:.1f} °C'.format(temp)
+        if alt == 0:    # invalid input, calculate altitude from pressure
+            alt = round((145366.45 * (1 - pow(pressure / 101325, 0.190284))) / 3.2808)
         alt = '{:.0f} m'.format(alt)
         lat = '{:.3f}'.format(lat)
         lon = '{:.3f}'.format(lon)
