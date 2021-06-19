@@ -1,7 +1,7 @@
 # To do list:
     # create sqlite database ✓
     # store data from cloud in database ✓
-        # adjust format to correspond actual data
+        # adjust format to correspond actual data ✓
         # estimate altitude from pressure ✓ --> need to be checked
     # write tests ✓
     # fill in Readme.md
@@ -14,15 +14,18 @@
             # adjust size according to balloon route ✓
         # display picture ✓ --> old one!
         # display summary table ✓
-        # display graphs of temperature and altitude in time
+        # display graphs of temperature and altitude in time x
         # display basic info ✓ --> lorem for now
         # make index.html responsive ✓
         # make index.html pretty ✓
+    # if there are no data from gps, use lat, lon, alt from gateway
 
 import pathlib
 from datetime import datetime
 from flask import Flask, request, current_app, Response, render_template
 from db import Database
+from collections import defaultdict
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -77,17 +80,6 @@ def provide_data():
     return data
 
 
-def provide_data_graph():
-    '''
-    How temperature and altitude developed in time.
-    '''
-    data_all = provide_data()
-    data_graph = []
-    for i, entry in enumerate(data_all):
-        time, _, temp, alt, _, _, _ = entry
-        data_graph.append([time, temp, alt])
-
-
 @app.route('/', methods=['GET'])
 def index():
     '''
@@ -98,18 +90,19 @@ def index():
     '''
     data_table = provide_data()
     data_markers = provide_data_markers()
-    data_graph = provide_data_graph()
     return render_template('index.html',
                            data_markers=data_markers,
-                           data_table=data_table,
-                           data_graph=data_graph)
+                           data_table=data_table)
 
 
 @app.route('/endpoint', methods=['POST'])
 def endpoint():
     '''Insert incoming data into database'''
-    data = request.get_json(force=True)
-    current_app.db.store_data(data)
+    raw_data = request.get_json(force=True)
+    received_data = defaultdict(lambda: None)
+    received_data.update(raw_data)
+    received_data['timestamp'] = datetime.timestamp(datetime.now())
+    current_app.db.prepare_data(received_data)
     status_code = Response(status=200)
     return status_code
 
