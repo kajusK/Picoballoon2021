@@ -28,8 +28,8 @@ MEMORY
 }
 
 /** Custom areas for LoRa TX counter storage */
-PROVIDE(counter1 = ORIGIN(custom1));
-PROVIDE(counter2 = ORIGIN(custom2));
+PROVIDE(persist1 = ORIGIN(custom1));
+PROVIDE(persist2 = ORIGIN(custom2));
 
 /* Include the common ld script. */
 INCLUDE cortex-m-generic.ld

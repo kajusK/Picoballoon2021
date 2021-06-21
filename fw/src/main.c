@@ -50,6 +50,7 @@
 
 #include "config.h"
 
+/** LoRa packet payload format */
 typedef struct {
     uint16_t press_daPa;    /** Air pressure in deca Pascals (*10) */
     int16_t temp_dc;        /** Temperature in deci Celsius (/10) */
@@ -61,33 +62,39 @@ typedef struct {
     uint8_t loop_time_s;    /**< Time since wake up until packet creation */
 } __attribute__((packed)) telemetry_packet_t;
 
-/** The Thing Network auth data */
-static const uint8_t ttn_DevAddr[4] = TTN_DEV_ADDR;
-static const uint8_t ttn_NwkSkey[16] = TTN_NWKSKEY;
-static const uint8_t ttn_AppSkey[16] = TTN_APPSKEY;
+/** Persistent data stored in the flash memory between consecutive runs */
+typedef struct {
+    uint32_t counter;       /**< LoRa Packet counter */
+    rfm_lora_region_t region;   /**< RFM LoRa region used recently */
+} persist_data_t;
+
+/** Memory locations for persistent data defined in linker file */
+extern const persist_data_t persist1;
+extern const persist_data_t persist2;
 
 static gps_desc_t gps_desc;
 static ms5607_desc_t ms5607_desc;
 static rfm_desc_t rfm_desc;
 
-/** Address to store Lora counter value, defined in linker */
-extern const uint32_t counter1;
-extern const uint32_t counter2;
+/** The Thing Network auth data */
+static const uint8_t lora_dev_addr[4] = TTN_DEV_ADDR;
+static const uint8_t lora_nwks_key[16] = TTN_NWKSKEY;
+static const uint8_t lora_apps_key[16] = TTN_APPSKEY;
 
 /**
- * Set LoRa region based on recent known location
+ * Get LoRa region based on recent known location
  *
  * @param gps_lat   Latitude
  * @param gps_lon   Longitude
+ * @return Selected LoRa region
  */
-static void App_SetRegion(nmea_float_t gps_lat,
+static rfm_lora_region_t App_GetRegion(nmea_float_t gps_lat,
         nmea_float_t gps_lon)
 {
     rfm_lora_region_t region = RFM_REGION_EU863;
     int16_t lat = gps_lat.num / gps_lat.scale;
     int16_t lon = gps_lon.num / gps_lon.scale;
 
-    /* America */
     if (lon > -180 && lon < -50) {
         region = RFM_REGION_US902;
         Log_Info("GPS", "Using US LoRa region");
@@ -103,50 +110,64 @@ static void App_SetRegion(nmea_float_t gps_lat,
         Log_Info("GPS", "Using EU LoRa region");
     }
 
-    RFM_SetLoraRegion(&rfm_desc, region);
+    return region;
 }
 
 /**
- * Save value of the LoRaWan tx counter to internal flash memory
+ * Save persistent data to flash memory
  *
- * @param counter   Counter value
+ * @param counter   LoRa tx counter value
+ * @param region    RFM LoRaWan region recently used
  */
-static void App_SaveTxCounter(uint32_t counter)
+static void App_SavePersistentData(uint32_t counter, rfm_lora_region_t region)
 {
-    uint32_t addr;
+    persist_data_t data;
+    uint32_t addr = (uint32_t)&persist1;
 
-    if (counter1 == (uint32_t)-1) {
-        addr = (uint32_t)&counter1;
-    } else if (counter2 == (uint32_t)-1) {
-        addr = (uint32_t)&counter2;
-    } else if (counter1 > counter2) {
-        addr = (uint32_t)&counter2;
+    if (persist1.counter == (uint32_t)-1) {
+        addr = (uint32_t)&persist1;
+    } else if (persist2.counter == (uint32_t)-1) {
+        addr = (uint32_t)&persist2;
+    } else if (persist1.counter > persist2.counter) {
+        addr = (uint32_t)&persist2;
     } else {
-        addr = (uint32_t)&counter1;
+        addr = (uint32_t)&persist1;
     }
+    data.counter = counter;
+    data.region = region;
+
     Flashd_WriteEnable();
     Flashd_ErasePage(addr);
-    Flashd_Write(addr, (uint8_t *)&counter, sizeof(counter));
+    Flashd_Write(addr, (uint8_t *)&data, sizeof(data));
     Flashd_WriteDisable();
 }
 
 /**
- * Load saved value of the LoRaWan tx counter
+ * Load saved persistent data
  *
- * @return Saved counter value or 0
+ * @param [out] counter     Recently used LoRa TX counter value
+ * @param [out] region      Recently used LoRa region
  */
-static uint32_t App_LoadTxCounter(void)
+static void App_LoadPersistentData(uint32_t *counter, rfm_lora_region_t *region)
 {
-    if (counter1 == (uint32_t)-1 && counter2 == (uint32_t)-1) {
-        return 0;
+    const persist_data_t *data;
+
+    if (persist1.counter == (uint32_t)-1 && persist2.counter == (uint32_t)-1) {
+        *counter = 0;
+        *region = RFM_REGION_EU863;
+        return;
+    } else if (persist1.counter == (uint32_t)-1) {
+        data = &persist2;
+    } else if (persist2.counter == (uint32_t)-1) {
+        data = &persist1;
+    } else if (persist1.counter > persist2.counter) {
+        data = &persist2;
+    } else {
+        data = &persist1;
     }
-    if (counter2 == (uint32_t)-1) {
-        return counter1;
-    }
-    if (counter1 > counter2) {
-        return counter1;
-    }
-    return counter2;
+
+    *counter = data->counter;
+    *region = data->region;
 }
 
 static void App_GpsOn(void)
@@ -168,9 +189,10 @@ static void App_GpsOff(void)
 static bool App_WaitGps(uint32_t timeout_s)
 {
     uint32_t start_ts;
-    Log_Info("App", "Waiting for GPS");
-    EXTId_EnableEvent(PAD_GPS_FIX);
 
+    Log_Info("App", "Waiting for GPS");
+
+    EXTId_EnableEvent(PAD_GPS_FIX);
     if (IOd_GetLine(LINE_GPS_FIX) != 1) {
         /* Go to sleep until GPS fix is obtained or timeout */
         RTCd_SetAlarmInSeconds(timeout_s, NULL);
@@ -186,7 +208,26 @@ static bool App_WaitGps(uint32_t timeout_s)
     while (Gps_Loop(&gps_desc) == NULL && (millis() - start_ts) < 1500) {
         ;
     }
+
     return Gps_Get(&gps_desc) != NULL;
+}
+
+/**
+ * Get the time difference between start time and current time from RTC
+ *
+ * @return time in seconds
+ */
+static uint32_t time_elapsed_s(struct tm *tm_start)
+{
+    struct tm tm_now;
+    time_t start;
+    time_t now;
+
+    RTCd_GetTime(&tm_now);
+    start = mktime(tm_start);
+    now = mktime(&tm_now);
+
+    return (uint32_t)difftime(now, start);
 }
 
 static void App_Loop(void)
@@ -195,19 +236,21 @@ static void App_Loop(void)
     const gps_info_t *gps;
     int32_t temp_mdeg = 0;
     uint32_t press_Pa = 0;
-    uint32_t start_ts = millis();
-    uint32_t tx_counter = App_LoadTxCounter();
-    bool use_gps = tx_counter % TELEMETRY_GPS_SKIP == 0;
+    struct tm tm;
+    uint32_t tx_counter = 0;
+    rfm_lora_region_t region = RFM_REGION_EU863;
+    bool use_gps = false;
     uint32_t gps_timeout_s = GPS_FIX_TIMEOUT_S;
 
-
-    Log_Info(NULL, "Measuring");
-    if (use_gps) {
+    RTCd_GetTime(&tm);
+    App_LoadPersistentData(&tx_counter, &region);
+    if (tx_counter % TELEMETRY_GPS_SKIP == 0) {
         if (tx_counter % (TELEMETRY_GPS_SKIP*TELEMETRY_GPS_FULL_SKIP) == 0) {
             gps_timeout_s = GPS_FULL_TIMEOUT_S;
         }
         Log_Info("App", "Using GPS, timeout %d seconds", gps_timeout_s);
         App_GpsOn();
+        use_gps = true;
     }
 
     Adcd_UpdateVdda();
@@ -226,41 +269,54 @@ static void App_Loop(void)
     /* wait for fix */
     if (use_gps && !App_WaitGps(gps_timeout_s)) {
         Log_Info("App", "Failed to get GPS position");
-        /* Fallback to EU region if GPS failed */
-        RFM_SetLoraRegion(&rfm_desc, RFM_REGION_EU863);
     }
     gps = Gps_Get(&gps_desc);
     App_GpsOff();
 
     if (gps != NULL) {
         Log_Info("App", "Got GPS");
-        App_SetRegion(gps->lat, gps->lon);
+        region = App_GetRegion(gps->lat, gps->lon);
         packet.gps_alt_m = gps->altitude_dm/10;
         packet.lat = ((float) gps->lat.num) / gps->lat.scale;
         packet.lon = ((float) gps->lon.num) / gps->lon.scale;
     } else {
-        /* keep region from previous fix */
+        if (use_gps) {
+            /* Failed to obtain GPS fix, get default region */
+            region = RFM_REGION_EU863;
+        }
         packet.gps_alt_m = 0;
         packet.lat = 0;
         packet.lon = 0;
     }
-    packet.loop_time_s = (millis() - start_ts) / 1000;
+
+    packet.loop_time_s = time_elapsed_s(&tm);
 
     Log_Info(NULL, "TX counter %d", tx_counter);
     Log_Info(NULL, "Pressure %d Pa", packet.press_daPa*10);
     Log_Info(NULL, "Temperature %d C", packet.temp_dc/10);
-    Log_Info(NULL, "Core temp %d C", (int32_t)packet.core_temp_c);
+    Log_Info(NULL, "Core temp %d C", packet.core_temp_c);
     Log_Info(NULL, "Battery voltage %d mV", packet.bat_mv);
-    Log_Info(NULL, "GPS alt %d", packet.gps_alt_m);
-    Log_Info(NULL, "Loop time %d", packet.loop_time_s);
+    Log_Info(NULL, "Latitude %f", packet.lat);
+    Log_Info(NULL, "Longitude %f", packet.lon);
+    Log_Info(NULL, "GPS alt %d m", packet.gps_alt_m);
+    Log_Info(NULL, "Loop time %d s", packet.loop_time_s);
     Log_Info(NULL, "Sending data");
 
-    /* Save lora tx counter + 1 (in case, power dies before saving) */
+    /* RFM module initialization postponed here to save power */
+    RFM_LoraInit(&rfm_desc);
+    RFM_SetLoraParams(&rfm_desc, RFM_BW_125k, RFM_SF_10);
+    RFM_SetPowerDBm(&rfm_desc, 17);
+    RFM_SetLoraRegion(&rfm_desc, region);
+
+    /* Save LoRa tx counter + 1 (in case, power dies before saving) */
     Lora_SetCounters(0, tx_counter);
-    App_SaveTxCounter(tx_counter+1);
+    App_SavePersistentData(tx_counter+1, region);
+
     if (!Lora_Send((uint8_t *) &packet, sizeof(packet))) {
         Log_Error(NULL, "Failed to send data over LoRaWan!");
     }
+    Log_Info(NULL, "Powering off");
+    RFM_PowerOff(&rfm_desc);
 }
 
 static void lora_send_cb(const uint8_t *data, size_t len)
@@ -288,17 +344,20 @@ int main(void)
 
     UARTd_Init(USART_GPS_TXD, 9600);
     Gps_Init(&gps_desc, USART_GPS_TXD);
+
     if (!MS5607_Init(&ms5607_desc, 1, MS5607_ADDR_1)) {
         Log_Error(NULL, "MS5607 pressure sensor not responding");
     }
 
-    if (!RFM_LoraInit(&rfm_desc, 1, LINE_RFM_CS, LINE_RFM_RESET, LINE_RFM_IO0)) {
+    if (!RFM_Init(&rfm_desc, 1, LINE_RFM_CS, LINE_RFM_RESET, LINE_RFM_IO0)) {
         Log_Error(NULL, "RFM module not responding!");
+        delay_ms(1000);
+        /* RFM module is crucial, it makes no sense to continue without it */
+        Powerd_Reboot();
     }
-    Lora_InitAbp(lora_send_cb, ttn_DevAddr, ttn_NwkSkey, ttn_AppSkey);
-    RFM_SetLoraRegion(&rfm_desc, RFM_REGION_EU863);
-    RFM_SetLoraParams(&rfm_desc, RFM_BW_125k, RFM_SF_10);
-    RFM_SetPowerDBm(&rfm_desc, 17);
+    Lora_InitAbp(lora_send_cb);
+    Lora_SetAbpKeys(lora_dev_addr, lora_nwks_key, lora_apps_key);
+
     EXTId_SetMux(LINE_GPS_FIX);
     EXTId_SetEdge(PAD_GPS_FIX, EXTID_RISING);
 
@@ -312,10 +371,17 @@ int main(void)
     /* ================ TODO ================ */
 
     while (1) {
-        App_Loop();
+        /* set alarm first to ensure precise periods */
         RTCd_SetAlarmInSeconds(TELEMETRY_PERIOD_MIN*60, NULL);
+        App_Loop();
+
+        Adcd_Sleep();
+        App_GpsOff();
+        RFM_PowerOff(&rfm_desc);
         Powerd_Off();
         Log_Error(NULL, "Failed to power off the MCU!");
+        delay_ms(1000);
+        Powerd_Reboot();
     }
 }
 
