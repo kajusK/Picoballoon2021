@@ -1,5 +1,5 @@
 import sqlite3
-
+from collections import defaultdict
 
 class Database:
 
@@ -26,8 +26,7 @@ class Database:
                 lon_gw REAL,
                 json TEXT)''')
 
-
-    def strongest_gw(self, metadata):
+    def indentify_strongest_gw(self, metadata):
         '''
         Determine strongest RSSI from an array of gateways,
         return strongest gateway latitude, longitude and altitude
@@ -59,6 +58,8 @@ class Database:
             ]
         for key in keys:
             data_for_storing.setdefault(key, None)
+        # timestamp
+        data_for_storing['timestamp'] = data['timestamp']
 
         # data from GPS
         if data['payload_fields']:
@@ -69,18 +70,25 @@ class Database:
         # lat, lon & alt from gateways
         # either from metadata or from strongest rssi gateway
         if data['metadata']:
-            metadata = data['metadata']
+            metadata = defaultdict(lambda: None)
+            metadata.update(data['metadata'])
+            if metadata['gateways']:
+                if self.indentify_strongest_gw(metadata):
+                    lat_gw, lon_gw, alt_gw = self.indentify_strongest_gw(metadata)
             if metadata['latitude'] and metadata['longitude']:
                 lat_gw = metadata['latitude']
                 lon_gw = metadata['longitude']
-            else:
-                if self.strongest_gw(metadata):
-                    lat_gw, lon_gw, alt_gw = self.strongest_gw(metadata)
-            if metadata['altitude']:
-                alt_gw = metadata['altitude']
-            data_for_storing['lat_gw'] = lat_gw
-            data_for_storing['lon_gw'] = lon_gw
-            data_for_storing['alt_gw'] = alt_gw
+                if metadata['altitude']:
+                    alt_gw = metadata['altitude']
+            try:
+                data_for_storing['lat_gw'] = lat_gw
+                data_for_storing['lon_gw'] = lon_gw
+            except UnboundLocalError:
+                pass
+            try:
+                data_for_storing['alt_gw'] = alt_gw
+            except UnboundLocalError:
+                pass
         self.store_data(data_for_storing)
 
     def store_data(self, data):
