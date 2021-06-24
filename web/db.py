@@ -19,11 +19,11 @@ class Database:
                 alt_m INTEGER,
                 lat REAL,
                 lon REAL,
-                battery_mv INTEGER,
+                bat_mv INTEGER,
                 loop_time_s INTEGER,
-                alt_gw INTEGER,
                 lat_gw REAL,
                 lon_gw REAL,
+                alt_gw INTEGER,
                 json TEXT)''')
 
     def indentify_strongest_gw(self, metadata):
@@ -52,9 +52,8 @@ class Database:
     def prepare_data(self, data):
         data_for_storing = {}
         keys = [
-            'timestamp', 'alt_m', 'bat_mv', 'core_temp_c', 'lat',
-            'lon', 'loop_time_s', 'pressure_pa', 'temp_c',
-            'alt_gw', 'lat_gw', 'lon_gw'
+            'timestamp', 'pressure_pa', 'temp_c', 'core_temp_c', 'alt_m', 'bat_mv', 'lat',
+            'lon', 'loop_time_s', 'lat_gw', 'lon_gw', 'alt_gw'
             ]
         for key in keys:
             data_for_storing.setdefault(key, None)
