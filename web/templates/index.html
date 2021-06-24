@@ -43,7 +43,7 @@
                         [marker_id, time, card_body, lon, lat] = data;
                         // set card properties
                         var card = new SMap.Card();
-                        card.setSize(250, 242);     // width, height
+                        card.setSize(230, 242);     // width, height
                         card.getHeader().innerHTML =  time;
                         card.getBody().innerHTML = card_body;
                         // add marker
@@ -67,10 +67,10 @@
                     map.setCenterZoom(centered_map[0], centered_map[1]);
 
                 </script>
-                <div class="table-responsive">
+                <br><h4 class="p-3 mb-2 bg-info text-dark">Received data</h4>
+                <div class="table-responsive" style="height:400px;">
                     <table class="table table-hover table-sm caption-top">
-                        <thead class="table table-light">
-                            <br><h4 class="p-3 mb-2 bg-info text-dark">Received data</h4>
+                        <thead style="position: sticky;top: 0" class="table table-light">
                         <tr>
                             <th scope="col">Time</th>
                             <th scope="col">Pressure</th>
