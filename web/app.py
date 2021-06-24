@@ -20,6 +20,8 @@
         # make index.html pretty ✓
     # if there are no data from gps, use lat, lon, alt from gateway ✓
     # add security check into database
+    # save incoming data to external files ✓
+    # format of incoming missing data?? --> zero, adapt Database
 
 import pathlib
 from datetime import datetime
@@ -30,6 +32,18 @@ from datetime import datetime
 
 app = Flask(__name__)
 
+
+def pretty_format(value, digits=None, suffix=None, divisor=None):
+    if value == 'None':
+        return 'missing'
+    else:
+        if divisor:
+            value = value / divisor
+        value = round(value, digits)
+        if not suffix:
+            return value
+        else:
+            return f'{value} {suffix}'
 
 def provide_data_markers():
     '''
@@ -43,19 +57,10 @@ def provide_data_markers():
     data_markers = []
     for i, entry in enumerate(data_all):
         time, pressure, temp, alt, lat, lon, battery = entry
-        if temp == 'None':
-            temp = 'missing'
-        if battery == 'None':
-            battery = 'missing'
-        if alt == 'None':
-            alt = 'missing'
-        if lon == 'None':
-            lon = 'missing'
-        if lat == 'None':
-            lat = 'missing'
-        marker_id = i
-        card_body = f'temperature: {temp}, probe battery: {battery}, altitude: {alt}, longitude: {lon}, latitude: {lat}'
-        data_markers.append([marker_id, time, card_body, lon, lat])
+        if lat != 'missing' and lon != 'missing':
+            marker_id = i
+            card_body = f'temperature: {temp}, probe battery: {battery}, altitude: {alt}, longitude: {lon}, latitude: {lat}'
+            data_markers.append([marker_id, time, card_body, lon, lat])
     return data_markers
 
 
@@ -73,8 +78,8 @@ def provide_data_table():
     '''
     data_all = provide_data()
     data_table = []
-    for entry in data_all:
-        time, pressure, temp, alt, lat, lon, battery, lat_gw, lon_gw, alt_gw = entry
+    for row in data_all:
+        time, pressure, temp, alt, lat, lon, battery, lat_gw, lon_gw, alt_gw = row
         if alt in ['None', 0]:
             alt = alt_gw
         if lat in ['None', 0]:
@@ -88,7 +93,7 @@ def provide_data_table():
 def provide_data():
     '''
     Provide data (a list of lists), specifically:
-        - Time (day.month.year hour:minutes)
+        - Time (day.month. hour:minutes)
         - Pressure (HPa)
         - Temperature
         - Altitude (m)
@@ -103,33 +108,27 @@ def provide_data():
     '''
     data_raw = current_app.db.fetch_all_data()
     data = []
-    for entry in data_raw:
-        timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw = entry[:-1]
-        time = datetime.fromtimestamp(timestamp).strftime("%d.%m.%Y %H:%M")
+    for row in data_raw:
+        timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw = row[:-1]
+        # invalid input handling
         if alt == 0 or alt == 'None':    # invalid input, calculate altitude from pressure
             if pressure != 'None':
                 alt = round((145366.45 * (1 - pow(pressure / 101325, 0.190284))) / 3.2808)
-        if pressure != 'None':
-            pressure = '{:.2f} HPa'.format(pressure / 100)
         if temp != 'None':
             if temp < -100 or temp > 50 or temp == 0:      # if temperature is nonsense, use temperature of core
-                temp = '{:.1f} °C'.format(core_temp)
-            else:
-                temp = '{:.1f} °C'.format(temp)
-        if alt != 'None':
-            alt = '{:.0f} m'.format(alt)
-        if lat != 'None':
-            lat = '{:.3f}'.format(lat)
-        if lon != 'None':
-            lon = '{:.3f}'.format(lon)
-        if bat_mv != 'None':
-            battery = '{:.3f} V'.format(bat_mv / 1000)
-        if lat_gw != 'None':
-            lat_gw = '{:.3f}'.format(lat_gw)
-        if lon_gw != 'None':
-            lon_gw = '{:.3f}'.format(lon_gw)
-        if alt_gw != 'None':
-            alt_gw = '{:.0f} m'.format(alt_gw)
+                if core_temp != 'None':
+                    temp = core_temp
+        # pretty formatting
+        time = datetime.fromtimestamp(timestamp).strftime("%d.%m. %H:%M")
+        pressure = pretty_format(pressure, digits=2, suffix='HPa', divisor=100)
+        temp = pretty_format(temp, digits=1, suffix='°C')
+        alt = pretty_format(alt, digits=0, suffix='m')
+        lat = pretty_format(lat, digits=3)
+        lon = pretty_format(lon, digits=3)
+        battery = pretty_format(bat_mv, digits=3, suffix='V', divisor=1000)
+        lat_gw = pretty_format(lat_gw, digits=3)
+        lon_gw = pretty_format(lon_gw, digits=3)
+        alt_gw = pretty_format(alt_gw, digits=0, suffix='m')
         data.append([time, pressure, temp, alt, lat, lon, battery, lat_gw, lon_gw, alt_gw])
     return data
 
@@ -151,12 +150,23 @@ def index():
 
 @app.route('/endpoint', methods=['POST'])
 def endpoint():
-    '''Insert incoming data into database'''
+    '''
+    Save incoming data to a text file (with timestamp as a name)
+    Insert incoming data into database, pass them as a default dictionary (+ add current timestamp)
+    If everything goes smooth, return response status 200
+    '''
+    # obtain data
     raw_data = request.get_json(force=True)
+    # save data externally
+    timestamp = datetime.timestamp(datetime.now())
+    with open(f'cloud_data/{timestamp}.txt', 'w') as new_file:
+        print(raw_data, file=new_file)
+    # pass data to database (as default dictionary)
     received_data = defaultdict(lambda: None)
     received_data.update(raw_data)
-    received_data['timestamp'] = datetime.timestamp(datetime.now())
+    received_data['timestamp'] = timestamp      # add current timestamp
     current_app.db.prepare_data(received_data)
+    # everything goes fine = return 200
     status_code = Response(status=200)
     return status_code
 
