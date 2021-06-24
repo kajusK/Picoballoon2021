@@ -236,3 +236,4 @@ def test_endpoint_no_gw(client, db):
     "downlink_url": "https://integrations.thethingsnetwork.org/…Kq8"
     })
     assert response.status_code == 200
+
