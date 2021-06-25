@@ -19,12 +19,13 @@
         # make index.html responsive ✓
         # make index.html pretty ✓
     # if there are no data from gps, use lat, lon, alt from gateway ✓
-    # add security check into database
+    # add security check into database ✓
     # save incoming data to external files ✓
     # format of incoming missing data?? --> zero, adapt Database ✓
     # more tests ✓
 
 import pathlib
+import secrets
 from datetime import datetime
 from flask import Flask, request, current_app, Response, render_template
 from db import Database
@@ -159,19 +160,27 @@ def endpoint():
     Insert incoming data into database, pass them as a default dictionary (+ add current timestamp)
     If everything goes smooth, return response status 200
     '''
-    # obtain data
-    raw_data = request.get_json(force=True)
-    # save data externally
-    timestamp = datetime.timestamp(datetime.now())
-    with open(f'cloud_data/{timestamp}.txt', 'w') as new_file:
-        print(raw_data, file=new_file)
-    # pass data to database (as default dictionary)
-    received_data = defaultdict(lambda: None)
-    received_data.update(raw_data)
-    received_data['timestamp'] = timestamp      # add current timestamp
-    current_app.db.prepare_data(received_data)
-    # everything goes fine = return 200
-    status_code = Response(status=200)
+    # authorization header
+    header = request.headers.get('Authorization')
+    with open('token.txt') as f:
+        token = f.read()
+    if secrets.compare_digest(header, token):
+        # obtain data
+        raw_data = request.get_json(force=True)
+        # save data externally
+        timestamp = datetime.timestamp(datetime.now())
+        with open(f'cloud_data/{timestamp}.txt', 'w') as new_file:
+            print(raw_data, file=new_file)
+        # pass data to database (as default dictionary)
+        received_data = defaultdict(lambda: None)
+        received_data.update(raw_data)
+        received_data['timestamp'] = timestamp      # add current timestamp
+        current_app.db.prepare_data(received_data)
+        # everything goes fine = return 200
+        status_code = Response(status=200)
+    else:
+        # wrong token
+        status_code = Response(status=403)
     return status_code
 
 
