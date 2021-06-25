@@ -23,6 +23,7 @@
     # save incoming data to external files ✓
     # format of incoming missing data?? --> zero, adapt Database ✓
     # more tests ✓
+    # graph?
 
 import pathlib
 import secrets
@@ -106,12 +107,12 @@ def provide_data():
         - Longitude from gateway
         - Altitude (m) from gateway
     If outside temperature seems to be invalid, use temperature of core.
-    If altitude is None or 0, calculate it from pressure.
+    If altitude is None, calculate it from pressure.
     '''
     data_raw = current_app.db.fetch_all_data()
     data = []
     for row in data_raw:
-        timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw = row[:-1]
+        timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw = row[:-3]
         # invalid / missing input handling
         if alt == 'None' and pressure != 'None':    # missing altitude value, calculation from pressure
             alt = round((145366.45 * (1 - pow(pressure / 101325, 0.190284))) / 3.2808)

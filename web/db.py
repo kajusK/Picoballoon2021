@@ -24,12 +24,14 @@ class Database:
                 lat_gw REAL,
                 lon_gw REAL,
                 alt_gw INTEGER,
+                freq REAL,
+                rssi INTEGER,
                 json TEXT)''')
 
     def identify_strongest_gw(self, metadata):
         '''
         Determine strongest RSSI from an array of gateways,
-        return strongest gateway latitude, longitude and altitude
+        return strongest gateway latitude, longitude, altitude and rssi
         if essential values are absent, return None
         '''
         try:
@@ -41,11 +43,9 @@ class Database:
             gw_data = metadata['gateways'][strongest_gw[1]]
             lat_gw = gw_data['latitude']
             lon_gw = gw_data['longitude']
-            if gw_data['altitude']:
-                alt_gw = gw_data['altitude']
-            else:
-                alt_gw = None
-            return lat_gw, lon_gw, alt_gw
+            alt_gw = gw_data['altitude']
+            rssi = strongest_gw[0]
+            return lat_gw, lon_gw, alt_gw, rssi
         except KeyError:    # absent rssi / lat / lon
             return None
 
@@ -53,10 +53,11 @@ class Database:
         data_for_storing = {}
         keys = [
             'timestamp', 'pressure_pa', 'temp_c', 'core_temp_c', 'alt_m', 'bat_mv', 'lat',
-            'lon', 'loop_time_s', 'lat_gw', 'lon_gw', 'alt_gw'
+            'lon', 'loop_time_s', 'lat_gw', 'lon_gw', 'alt_gw', 'freq', 'rssi'
             ]
         for key in keys:
             data_for_storing.setdefault(key, None)
+
         # timestamp
         data_for_storing['timestamp'] = data['timestamp']
 
@@ -65,7 +66,6 @@ class Database:
             gps_data = data['payload_fields'].items()
             for key, value in gps_data:
                 data_for_storing[key] = value
-
         # lat, lon & alt from gateways
         # either from metadata or from strongest rssi gateway
         if data['metadata']:
@@ -73,7 +73,7 @@ class Database:
             metadata.update(data['metadata'])
             if metadata['gateways']:
                 if self.identify_strongest_gw(metadata):
-                    lat_gw, lon_gw, alt_gw = self.identify_strongest_gw(metadata)
+                    lat_gw, lon_gw, alt_gw, rssi = self.identify_strongest_gw(metadata)
             if metadata['latitude'] and metadata['longitude']:
                 lat_gw = metadata['latitude']
                 lon_gw = metadata['longitude']
@@ -88,6 +88,12 @@ class Database:
                 data_for_storing['alt_gw'] = alt_gw
             except UnboundLocalError:
                 pass
+            try:
+                data_for_storing['rssi'] = rssi
+            except UnboundLocalError:
+                pass
+            if metadata['frequency']:
+                data_for_storing['freq'] = metadata['frequency']
         # treat values of 0 as missing
         for key, value in data_for_storing.items():
             if value == 0:
@@ -109,6 +115,8 @@ class Database:
             "{data['lat_gw']}",
             "{data['lon_gw']}",
             "{data['alt_gw']}",
+            "{data['freq']}",
+            "{data['rssi']}",
             "{data}")''')
         self.__connection.commit()
 
