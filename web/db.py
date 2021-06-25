@@ -26,7 +26,7 @@ class Database:
                 alt_gw INTEGER,
                 json TEXT)''')
 
-    def indentify_strongest_gw(self, metadata):
+    def identify_strongest_gw(self, metadata):
         '''
         Determine strongest RSSI from an array of gateways,
         return strongest gateway latitude, longitude and altitude
@@ -34,18 +34,18 @@ class Database:
         '''
         try:
             for index, gateway in enumerate(metadata['gateways']):
-                if gateway and index == 0:
+                if index == 0:
                     strongest_gw = (gateway['rssi'], index)
                 elif gateway and (gateway['rssi'] > strongest_gw[0]):
                     strongest_gw = (gateway['rssi'], index)
-                gw_data = metadata['gateways'][strongest_gw[1]]
-                lat_gw = gw_data['latitude']
-                lon_gw = gw_data['longitude']
-                if gw_data['altitude']:
-                    alt_gw = gw_data['altitude']
-                else:
-                    alt_gw = None
-                return lat_gw, lon_gw, alt_gw
+            gw_data = metadata['gateways'][strongest_gw[1]]
+            lat_gw = gw_data['latitude']
+            lon_gw = gw_data['longitude']
+            if gw_data['altitude']:
+                alt_gw = gw_data['altitude']
+            else:
+                alt_gw = None
+            return lat_gw, lon_gw, alt_gw
         except KeyError:    # absent rssi / lat / lon
             return None
 
@@ -72,8 +72,8 @@ class Database:
             metadata = defaultdict(lambda: None)
             metadata.update(data['metadata'])
             if metadata['gateways']:
-                if self.indentify_strongest_gw(metadata):
-                    lat_gw, lon_gw, alt_gw = self.indentify_strongest_gw(metadata)
+                if self.identify_strongest_gw(metadata):
+                    lat_gw, lon_gw, alt_gw = self.identify_strongest_gw(metadata)
             if metadata['latitude'] and metadata['longitude']:
                 lat_gw = metadata['latitude']
                 lon_gw = metadata['longitude']
@@ -88,6 +88,12 @@ class Database:
                 data_for_storing['alt_gw'] = alt_gw
             except UnboundLocalError:
                 pass
+        # treat values of 0 as missing
+        with open('data_storing.txt', 'w') as f:
+            print(data_for_storing, file=f)
+        for key, value in data_for_storing.items():
+            if value == 0:
+                data_for_storing[key] = None
         self.store_data(data_for_storing)
 
     def store_data(self, data):
