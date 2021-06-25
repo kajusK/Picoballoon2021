@@ -87,12 +87,6 @@ def test_endpoint_returns_200(client):
 def test_endpoint_passes_data(client, db):
     '''Endpoint passes received data to database'''
     response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
-    "app_id": "picoballoon2021",
-    "dev_id": "probe",
-    "hardware_serial": "00EF30A4C3C5F12F",
-    "port": 1,
-    "counter": 18,
-    "payload_raw": "vCYoASS5AQAAAAAAAAAAAAAA",
     "payload_fields": {
         "alt_m": 1000,
         "bat_mv": 441,
@@ -104,11 +98,7 @@ def test_endpoint_passes_data(client, db):
         "temp_c": 29.6
         },
     "metadata": {
-        "time": "2021-06-17T19:20:32.358785168Z",
         "frequency": 867.9,
-        "modulation": "LORA",
-        "data_rate": "SF10BW125",
-        "coding_rate": "4/5",
         "gateways": [
             {
             "gtw_id": "eui-b827ebfffe114baa",
@@ -121,21 +111,16 @@ def test_endpoint_passes_data(client, db):
             "latitude": 0,
             "longitude": 0,
             "altitude": 0,
-            },
-            {},
-            {},
-            {},
+            }
             ],
         "latitude": 52.2345,
         "longitude": 6.2345,
         "altitude": 2
-        },
-    "downlink_url": "https://integrations.thethingsnetwork.org/…Kq8"
+        }
     })
     for data_row in db.fetch_all_data():
-        timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw, freq, rssi, json = data_row
-        for variable in data_row[:-1]:
-            assert variable != 'None'
+        for value in data_row:
+            assert value != 'None'
     assert response.status_code == 200
 
 def test_endpoint_save_externally(client, db):
@@ -150,30 +135,13 @@ def test_endpoint_save_externally(client, db):
 
 
 def test_database_no_gps(client, db):
-    '''Database can handle missing gps data and save data from device instead - not from gateway'''
+    '''Database can handle missing gps data and save data from device instead (not from gateway)'''
     response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
-    "app_id": "picoballoon2021",
-    "dev_id": "probe",
-    "hardware_serial": "00EF30A4C3C5F12F",
-    "port": 1,
-    "counter": 18,
-    "payload_raw": "vCYoASS5AQAAAAAAAAAAAAAA",
     "payload_fields": {},
     "metadata": {
-        "time": "2021-06-17T19:20:32.358785168Z",
-        "frequency": 867.9,
-        "modulation": "LORA",
-        "data_rate": "SF10BW125",
-        "coding_rate": "4/5",
         "gateways": [
             {
-            "gtw_id": "eui-b827ebfffe114baa",
-            "timestamp": 2703562732,
-            "time": "2021-06-17T19:20:32.342551Z",
-            "channel": 7,
             "rssi": -120,
-            "snr": -14.8,
-            "rf_chain": 0,
             "latitude": 10.32,
             "longitude": 14.22,
             "altitude": 5000
@@ -185,32 +153,20 @@ def test_database_no_gps(client, db):
         "latitude": 52.2345,
         "longitude": 6.2345,
         "altitude": 200
-        },
-    "downlink_url": "https://integrations.thethingsnetwork.org/…Kq8"
+        }
     })
     for data_row in db.fetch_all_data():
-        timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw, freq, rssi = data_row[:-1]
-        assert [pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time] == ['None', 'None', 'None','None', 'None', 'None','None', 'None']
-        assert [lat_gw, lon_gw, alt_gw, freq, rssi] == [52.2345, 6.2345, 200, 867.9, -120]
+        lat_gw, lon_gw, alt_gw, freq, rssi = data_row[9:-1]
+        assert [lat_gw, lon_gw, alt_gw] == [52.2345, 6.2345, 200]
     assert response.status_code == 200
 
 
 def test_database_missing_device_info(client, db):
     '''Database can handle missing gps data and missing device info data and save data from gateway instead'''
     response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
-    "app_id": "picoballoon2021",
-    "dev_id": "probe",
-    "hardware_serial": "00EF30A4C3C5F12F",
-    "port": 1,
-    "counter": 18,
-    "payload_raw": "vCYoASS5AQAAAAAAAAAAAAAA",
     "payload_fields": {},
     "metadata": {
-        "time": "2021-06-17T19:20:32.358785168Z",
         "frequency": 700.9,
-        "modulation": "LORA",
-        "data_rate": "SF10BW125",
-        "coding_rate": "4/5",
         "gateways": [
             {
             "gtw_id": "eui-b827ebfffe114baa",
@@ -228,12 +184,10 @@ def test_database_missing_device_info(client, db):
             {},
             {}
             ]
-        },
-    "downlink_url": "https://integrations.thethingsnetwork.org/…Kq8"
+        }
     })
     for data_row in db.fetch_all_data():
-        timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw, freq, rssi = data_row[:-1]
-        assert [pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time] == ['None', 'None', 'None', 'None', 'None', 'None','None', 'None']
+        lat_gw, lon_gw, alt_gw, freq, rssi = data_row[9:-1]
         assert [lat_gw, lon_gw, alt_gw, freq, rssi] == [53.2312345254, 42.1, 100, 700.9, -100]
     assert response.status_code == 200
 
@@ -244,27 +198,15 @@ def test_database_no_gw(client, db):
     Only timestamp is present
     '''
     response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
-    "app_id": "picoballoon2021",
-    "dev_id": "probe",
-    "hardware_serial": "00EF30A4C3C5F12F",
-    "port": 1,
-    "counter": 18,
-    "payload_raw": "vCYoASS5AQAAAAAAAAAAAAAA",
     "payload_fields": {},
     "metadata": {
-        "time": "2021-06-17T19:20:32.358785168Z",
         "frequency": 0,
-        "modulation": "LORA",
-        "data_rate": "SF10BW125",
-        "coding_rate": "4/5",
         "gateways": []
         },
-    "downlink_url": "https://integrations.thethingsnetwork.org/…Kq8"
     })
     for data_row in db.fetch_all_data():
-        timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw, freq, rssi = data_row[:-1]
-        assert [pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw, freq, rssi] == ['None', 'None', 'None', 'None', 'None', 'None', 'None', 'None','None', 'None', 'None', 'None', 'None']
-        assert timestamp != 'None'
+        for value in data_row[1:1]:     # except timestamp and json
+            assert value == 'None'
     assert response.status_code == 200
 
 
@@ -272,21 +214,14 @@ def test_database_no_data(client, db):
     '''Database can handle empty json'''
     response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={})
     for data_row in db.fetch_all_data():
-        timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw, freq, rssi = data_row[:-1]
-        assert [pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw, freq, rssi] == ['None', 'None', 'None', 'None', 'None', 'None', 'None', 'None','None', 'None', 'None', 'None', 'None']
-        assert timestamp != 'None'
+        for value in data_row[1:1]:     # except timestamp and json
+            assert value == 'None'
     assert response.status_code == 200
 
 
 def test_database_handle_0(client, db):
     '''Database can treat 0 values as missing (None)'''
     response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
-    "app_id": "picoballoon2021",
-    "dev_id": "probe",
-    "hardware_serial": "00EF30A4C3C5F12F",
-    "port": 1,
-    "counter": 18,
-    "payload_raw": "vCYoASS5AQAAAAAAAAAAAAAA",
     "payload_fields": {
         "alt_m": 0,
         "bat_mv": 0,
@@ -298,19 +233,10 @@ def test_database_handle_0(client, db):
         "temp_c": 0
         },
     "metadata": {
-        "time": "2021-06-17T19:20:32.358785168Z",
         "frequency": 0,
-        "modulation": "LORA",
-        "data_rate": "SF10BW125",
-        "coding_rate": "4/5",
         "gateways": [
             {
-            "gtw_id": "eui-b827ebfffe114baa",
-            "timestamp": 2703562732,
-            "time": "2021-06-17T19:20:32.342551Z",
-            "channel": 7,
             "rssi": 0,
-            "snr": -14.8,
             "rf_chain": 0,
             "latitude": 0,
             "longitude": 0,
@@ -320,74 +246,62 @@ def test_database_handle_0(client, db):
         "latitude": 0,
         "longitude": 0,
         "altitude": 0
-        },
-    "downlink_url": "https://integrations.thethingsnetwork.org/…Kq8"
+        }
     })
     for data_row in db.fetch_all_data():
-        timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw, freq, rssi = data_row[:-1]
-        assert [pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw, freq, rssi] == ['None', 'None', 'None', 'None', 'None', 'None', 'None', 'None','None', 'None', 'None', 'None', 'None']
-        assert timestamp != 'None'
+        for value in data_row[1:-1]:  # except timestamp and json
+            assert value == 'None'
     assert response.status_code == 200
 
 
 def test_database_strongest_gw(client, db):
     '''Database will use gateway with strongest rssi'''
     response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
-    "app_id": "picoballoon2021",
-    "dev_id": "probe",
-    "hardware_serial": "00EF30A4C3C5F12F",
-    "port": 1,
-    "counter": 18,
-    "payload_raw": "vCYoASS5AQAAAAAAAAAAAAAA",
-    "payload_fields": {},
     "metadata": {
-        "time": "2021-06-17T19:20:32.358785168Z",
         "frequency": 867.9,
-        "modulation": "LORA",
-        "data_rate": "SF10BW125",
-        "coding_rate": "4/5",
         "gateways": [
             {
-            "gtw_id": "eui-b827ebfffe114baa",
-            "timestamp": 2703562732,
-            "time": "2021-06-17T19:20:32.342551Z",
-            "channel": 7,
             "rssi": -120,
-            "snr": -14.8,
-            "rf_chain": 0,
             "latitude": 10.00,
             "longitude": 10.00,
             "altitude": 5000
             },
             {
-            "gtw_id": "eueri-b827ebfffe114baa",
-            "timestamp": 2703562832,
-            "time": "2021-06-17T19:20:32.342551Z",
-            "channel": 7,
             "rssi": 100,
-            "snr": -14.8,
-            "rf_chain": 0,
             "latitude": 20.00,
             "longitude": 20.00,
             "altitude": 6000
             },
             {
-            "gtw_id": "eueri-b827ebfffe114baa",
-            "timestamp": 2703562832,
-            "time": "2021-06-17T19:20:32.342551Z",
-            "channel": 7,
             "rssi": 50,
-            "snr": -14.8,
-            "rf_chain": 0,
             "latitude": 30.00,
             "longitude": 30.00,
             "altitude": 7000
             }
             ],
-        },
-    "downlink_url": "https://integrations.thethingsnetwork.org/…Kq8"
+        }
     })
     for data_row in db.fetch_all_data():
-        timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw, freq, rssi = data_row[:-1]
+        lat_gw, lon_gw, alt_gw, freq, rssi = data_row[9:-1]
         assert [lat_gw, lon_gw, alt_gw, freq, rssi] == [20.00, 20.00, 6000, 867.9, 100]
+    assert response.status_code == 200
+
+
+def test_database_strings_invalid(client, db):
+    '''Database will treat strins as missing'''
+    response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
+    "payload_fields": {"loop_time_s": "heey"},
+    "metadata": {
+        "frequency": "hey",
+        "gateways": [
+            {
+            "latitude": "hello",
+            "longitude": "hi",
+            }
+            ],
+        }
+    })
+    for data_row in db.fetch_all_data():
+        _, _, _, _, _, _, _, _, loop_time, lat_gw, lon_gw, _, freq, rssi = data_row[:-1]
+        assert [lat_gw, lon_gw, freq, loop_time] == ['None', 'None', 'None', 'None']
     assert response.status_code == 200
