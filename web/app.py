@@ -93,6 +93,26 @@ def provide_data_table():
     return data_table
 
 
+def provide_data_graph():
+    data_all = provide_data()
+    data_temp_time = []
+    data_temp = []
+    data_alt_time = []
+    data_alt = []
+    for row in data_all:
+        time, pressure, temp, alt, lat, lon, battery, lat_gw, lon_gw, alt_gw = row
+        # remove suffixes! and to float
+        if temp != 'missing':
+            temp = float(temp.split()[0])
+            data_temp_time.append(time)
+            data_temp.append(temp)
+        if alt != 'missing':
+            alt = float(alt.split()[0])
+            data_alt_time.append(time)
+            data_alt.append(alt)
+    return (data_temp_time, data_temp, data_alt_time, data_alt)
+
+
 def provide_data():
     '''
     Provide data (a list of lists), specifically:
@@ -149,9 +169,15 @@ def index():
     '''
     data_table = provide_data_table()
     data_markers = provide_data_markers()
+    data_temp_time, data_temp, data_alt_time, data_alt = provide_data_graph()
     return render_template('index.html',
                            data_markers=data_markers,
-                           data_table=data_table)
+                           data_table=data_table,
+                           data_temp_time=data_temp_time,
+                           data_temp=data_temp,
+                           data_alt_time=data_alt_time,
+                           data_alt=data_alt
+                           )
 
 
 @app.route('/endpoint', methods=['POST'])
