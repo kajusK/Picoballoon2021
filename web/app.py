@@ -21,7 +21,8 @@
     # if there are no data from gps, use lat, lon, alt from gateway ✓
     # add security check into database
     # save incoming data to external files ✓
-    # format of incoming missing data?? --> zero, adapt Database
+    # format of incoming missing data?? --> zero, adapt Database ✓
+    # more tests ✓
 
 import pathlib
 from datetime import datetime
@@ -57,7 +58,7 @@ def provide_data_markers():
     data_markers = []
     for i, entry in enumerate(data_all):
         time, pressure, temp, alt, lat, lon, battery = entry
-        if lat != 'missing' and lon != 'missing':
+        if lat != 'missing' and lon != 'missing':   # marker must be localizable
             marker_id = i
             card_body = f'temperature: {temp}, probe battery: {battery}, altitude: {alt}, longitude: {lon}, latitude: {lat}'
             data_markers.append([marker_id, time, card_body, lon, lat])
@@ -80,11 +81,11 @@ def provide_data_table():
     data_table = []
     for row in data_all:
         time, pressure, temp, alt, lat, lon, battery, lat_gw, lon_gw, alt_gw = row
-        if alt in ['None', 0]:
+        if alt == 'missing':
             alt = alt_gw
-        if lat in ['None', 0]:
+        if lat == 'missing':
             lat = lat_gw
-        if lon in ['None', 0]:
+        if lon == 'missing':
             lon = lon_gw
         data_table.append([time, pressure, temp, alt, lat, lon, battery])
     return data_table
@@ -110,14 +111,17 @@ def provide_data():
     data = []
     for row in data_raw:
         timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw = row[:-1]
-        # invalid input handling
-        if alt == 0 or alt == 'None':    # invalid input, calculate altitude from pressure
-            if pressure != 'None':
-                alt = round((145366.45 * (1 - pow(pressure / 101325, 0.190284))) / 3.2808)
-        if temp != 'None':
-            if temp < -100 or temp > 50 or temp == 0:      # if temperature is nonsense, use temperature of core
-                if core_temp != 'None':
-                    temp = core_temp
+        # invalid / missing input handling
+        if alt == 'None' and pressure != 'None':    # missing altitude value, calculation from pressure
+            alt = round((145366.45 * (1 - pow(pressure / 101325, 0.190284))) / 3.2808)
+        if temp != 'None' and core_temp != 'None':
+            # use temperature of core for nonsense temperatures values
+            if temp in range(-100, 50):
+                pass
+            elif temp not in range(-100, 50) and core_temp in range(-100, 50):
+                temp = core_temp
+            else:   # cannot use temperature of core, discard value
+                temp = 'None'
         # pretty formatting
         time = datetime.fromtimestamp(timestamp).strftime("%d.%m. %H:%M")
         pressure = pretty_format(pressure, digits=2, suffix='HPa', divisor=100)
