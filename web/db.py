@@ -89,8 +89,6 @@ class Database:
             except UnboundLocalError:
                 pass
         # treat values of 0 as missing
-        with open('data_storing.txt', 'w') as f:
-            print(data_for_storing, file=f)
         for key, value in data_for_storing.items():
             if value == 0:
                 data_for_storing[key] = None
