@@ -215,4 +215,4 @@ if __name__ == '__main__':
     path = str(pathlib.Path().resolve())
     with app.app_context():                 # management of the application context
         current_app.db = Database(path)     # proxy to the application handling the current request
-    app.run(debug=True)                     # must be disabled!
+    app.run(debug=False)                    # must be disabled!
