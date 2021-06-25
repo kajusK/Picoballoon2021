@@ -94,9 +94,9 @@ class Database:
                 pass
             if metadata['frequency']:
                 data_for_storing['freq'] = metadata['frequency']
-        # treat values of 0 as missing
+        # treat values of 0 as missing, values must be float / integer / json
         for key, value in data_for_storing.items():
-            if value == 0:
+            if value == 0 or type(value) == str:
                 data_for_storing[key] = None
         self.store_data(data_for_storing)
 
