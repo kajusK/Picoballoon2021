@@ -9,6 +9,7 @@
     <title>Picoballoon 2021</title>
     <script src="https://api.mapy.cz/loader.js"></script>
     <script type="text/javascript">Loader.lang = "en"; Loader.load()</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.js"></script>
 </head>
 
 <body>
@@ -68,7 +69,7 @@
 
                 </script>
                 <br><h4 class="p-3 mb-2 bg-info text-dark">Received data</h4>
-                <div class="table-responsive" style="height:400px;">
+                <div class="table-responsive" style="height:890px;">
                     <table class="table table-hover table-sm caption-top">
                         <thead style="position: sticky;top: 0" class="table table-light">
                         <tr>
@@ -96,6 +97,7 @@
                         {% endfor %}
                     </table>
                 </div>
+                <br><br>
             </div>
             <div class="col-sm-6">
                 <div>
@@ -109,8 +111,74 @@
                 </div>
                 <h4 class="p-3 mb-2 bg-info text-dark">Probe</h4>
                 <img src="{{ url_for('static', filename='probe.jpg') }}" class="img-fluid" alt="Responsive image">
-            </div>
+                <br><br>
+                <h4 class="p-3 mb-2 bg-info text-dark">Temperature and altitude in time</h4>
+                <div class="card chart-container">
+                    <canvas id="chart_temperature"></canvas>
+                </div>
 
+               <script> var data_temp_time = {{ data_temp_time|tojson }};</script>
+               <script> var data_temp = {{ data_temp|tojson }};</script>
+
+               <script>
+                const ctx_temp = document.getElementById("chart_temperature").getContext('2d');
+                const chart_temperature = new Chart(ctx_temp, {
+                  type: 'line',
+                  data: {
+                    labels: data_temp_time,
+                    datasets: [{
+                      label: 'Temperature',
+                      backgroundColor: 'rgba(191, 239, 255)',
+                      borderColor: 'rgb(13, 202, 240)',
+                      data: data_temp,
+                    }]
+                  },
+                  options: {
+                    scales: {
+                      yAxes: [{
+                        ticks: {
+                          beginAtZero: true,
+                        }
+                      }]
+                    }
+                  },
+                });
+                </script>
+                <br><br>
+                <div class="card chart-container">
+                    <canvas id="chart_altitude"></canvas>
+                </div>
+
+                <script> var data_alt_time = {{ data_alt_time|tojson }};</script>
+                <script> var data_alt = {{ data_alt|tojson }};</script>
+
+                <script>
+                    const ctx_alt = document.getElementById("chart_altitude").getContext('2d');
+                    const chart_altitude = new Chart(ctx_alt, {
+                    type: 'line',
+                    data: {
+                        labels: data_alt_time,
+                        datasets: [{
+                        label: 'Altitude',
+                        backgroundColor: 'rgba(191, 239, 255)',
+                        borderColor: 'rgb(13, 202, 240)',
+                        data: data_alt,
+                        }]
+                    },
+                    options: {
+                        scales: {
+                        yAxes: [{
+                            ticks: {
+                            beginAtZero: true,
+                            }
+                        }]
+                        }
+                    },
+                    });
+            </script>
+            <br><br>
+            </div>
+        </div>
     </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-gtEjrD/SeCtmISkJkNUaaKMoLD0//ElJ19smozuHV6z3Iehds+3Ulb9Bn9Plx0x4" crossorigin="anonymous"></script>
