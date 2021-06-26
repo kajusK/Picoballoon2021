@@ -7,7 +7,6 @@ from collections import defaultdict
 
 app = Flask(__name__)
 
-
 def pretty_format(value, digits=None, suffix=None, divisor=None):
     if value == 'None':
         return 'missing'
@@ -102,7 +101,7 @@ def provide_data():
     If outside temperature seems to be invalid, use temperature of core.
     If altitude is None, calculate it from pressure.
     '''
-    data_raw = current_app.db.fetch_all_data()
+    data_raw = Database.get_db(app.config['DATABASE_PATH']).fetch_all_data()
     data = []
     for row in data_raw:
         timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw = row[:-3]
@@ -170,14 +169,14 @@ def endpoint():
             raw_data = request.get_json(force=True)
             # save data externally
             timestamp = datetime.timestamp(datetime.now())
-            with open(f'cloud_data/{timestamp}.txt', 'w') as new_file:
+            with open(f'''{app.config['DATABASE_PATH']}/cloud_data/{timestamp}.txt''', 'w') as new_file:
                 print(raw_data, file=new_file)
             # pass data to database (as default dictionary)
             if type(raw_data) == dict:
                 received_data = defaultdict(lambda: None)
                 received_data.update(raw_data)
                 received_data['timestamp'] = timestamp      # add current timestamp
-                current_app.db.prepare_data(received_data)
+                Database.get_db(app.config['DATABASE_PATH']).prepare_data(received_data)
                 # everything goes fine = return 200
                 status_code = Response(status=200)
             else:
@@ -193,7 +192,5 @@ def endpoint():
 
 
 if __name__ == '__main__':
-    path = str(pathlib.Path().resolve())
-    with app.app_context():
-        current_app.db = Database(path)
+    app.config['DATABASE_PATH'] = str(pathlib.Path().resolve())
     app.run(debug=False)

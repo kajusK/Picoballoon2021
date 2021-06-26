@@ -4,10 +4,14 @@ from collections import defaultdict
 class Database:
 
     def __init__(self, path):
-        self.__connection = sqlite3.connect(f'{path}/database.sqlite',  check_same_thread=False)
+        self.__connection = sqlite3.connect(f'{path}/database.sqlite')
         self.__connection.execute('pragma journal_mode=wal')
         self.__cursor = self.__connection.cursor()
         self.create_database_structure()
+
+    def get_db(DATABASE_PATH):
+        db = Database(DATABASE_PATH)
+        return db
 
     def create_database_structure(self):
         self.__cursor.execute('''

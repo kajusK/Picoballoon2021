@@ -1,21 +1,22 @@
 import pytest
 
-
 @pytest.fixture
-def db(tmp_path):                       # create temporary database instance
+def db(app):
     from db import Database
-    db = Database(tmp_path)
-    db.create_database_structure()
+    db = Database.get_db(app.config['DATABASE_PATH'])
     yield db
 
 
 @pytest.fixture
-def app(db):
-    from flask import current_app
+def app():
+    import pathlib
+    import os
     from app import app
     with app.app_context():
-        current_app.db = db     # replace current_app db with temporary db
-    return app
+        app.config['DATABASE_PATH'] = str(pathlib.Path().resolve())
+    yield app
+    if os.path.exists(f"""{app.config["DATABASE_PATH"]}/database.sqlite"""):
+        os.remove(f"""{app.config['DATABASE_PATH']}/database.sqlite""")
 
 
 @pytest.fixture
@@ -34,7 +35,7 @@ def test_db_private_attributes(db):
 
 def test_endpoint_returns_200(client):
     '''Endpoint receives data and return status_code 200 - when authorization token is correct'''
-    response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
+    response = client.post('/endpoint', headers={'Authorization': '1234'}, json={
     "app_id": "picoballoon2021",
     "dev_id": "probe",
     "hardware_serial": "00EF30A4C3C5F12F",
@@ -85,7 +86,7 @@ def test_endpoint_returns_200(client):
 
 def test_endpoint_passes_data(client, db):
     '''Endpoint passes received data to database'''
-    response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
+    response = client.post('/endpoint', headers={'Authorization': '1234'}, json={
     "payload_fields": {
         "alt_m": 1000,
         "bat_mv": 441,
@@ -123,23 +124,37 @@ def test_endpoint_passes_data(client, db):
     assert response.status_code == 200
 
 
-def test_endpoint_save_externally(client, db):
+def test_endpoint_save_externally(client, db, app):
     '''Endpoint saves incoming json to a new file'''
-    from datetime import datetime
     from os import path
-    response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={})
+    response = client.post('/endpoint', headers={'Authorization': '1234'}, json={
+    "payload_fields": {},
+    "metadata": {
+        "gateways": [
+            {
+            "rssi": -120,
+            "latitude": 10.32,
+            "longitude": 14.22,
+            "altitude": 5000
+            },
+            {},
+            {},
+            {}
+            ],
+        "latitude": 52.2345,
+        "longitude": 6.2345,
+        "altitude": 200
+        }
+    })
     last_input = db.fetch_all_data()
     timestamp = last_input[0][0]
-    assert path.exists(f"cloud_data/{timestamp}.txt") is True
+    assert path.exists(f"""{app.config['DATABASE_PATH']}/cloud_data/{timestamp}.txt""") is True
     assert response.status_code == 200
 
 
 def test_endpoint_no_authorization(client, db):
     '''Endpoint can handle missing headers - and deny access'''
     response = client.post('/endpoint', json={})
-    for data_row in db.fetch_all_data():
-        for value in data_row[1:1]:     # except timestamp and json
-            assert value == 'None'
     assert response.status_code == 403
 
 
@@ -159,7 +174,7 @@ def test_endpoint_wrong_data(client):
 
 def test_database_no_gps(client, db):
     '''Database can handle missing gps data and save data from device instead (not from gateway)'''
-    response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
+    response = client.post('/endpoint', headers={'Authorization': '1234'}, json={
     "payload_fields": {},
     "metadata": {
         "gateways": [
@@ -186,7 +201,7 @@ def test_database_no_gps(client, db):
 
 def test_database_missing_device_info(client, db):
     '''Database can handle missing gps data and missing device info data and save data from gateway instead'''
-    response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
+    response = client.post('/endpoint', headers={'Authorization': '1234'}, json={
     "payload_fields": {},
     "metadata": {
         "frequency": 700.9,
@@ -220,7 +235,7 @@ def test_database_no_gw(client, db):
     Database can handle missing gps data, missing device info and missing gateway data
     Only timestamp is present
     '''
-    response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
+    response = client.post('/endpoint', headers={'Authorization': '1234'}, json={
     "payload_fields": {},
     "metadata": {
         "frequency": 0,
@@ -235,7 +250,7 @@ def test_database_no_gw(client, db):
 
 def test_database_no_data(client, db):
     '''Database can handle empty json'''
-    response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={})
+    response = client.post('/endpoint', headers={'Authorization': '1234'}, json={})
     for data_row in db.fetch_all_data():
         for value in data_row[1:1]:     # except timestamp and json
             assert value == 'None'
@@ -244,7 +259,7 @@ def test_database_no_data(client, db):
 
 def test_database_handle_0(client, db):
     '''Database can treat 0 values as missing (None)'''
-    response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
+    response = client.post('/endpoint', headers={'Authorization': '1234'}, json={
     "payload_fields": {
         "alt_m": 0,
         "bat_mv": 0,
@@ -279,7 +294,7 @@ def test_database_handle_0(client, db):
 
 def test_database_strongest_gw(client, db):
     '''Database will use gateway with strongest rssi'''
-    response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
+    response = client.post('/endpoint', headers={'Authorization': '1234'}, json={
     "metadata": {
         "frequency": 867.9,
         "gateways": [
@@ -312,7 +327,7 @@ def test_database_strongest_gw(client, db):
 
 def test_database_strings_invalid(client, db):
     '''Database will treat strins as missing'''
-    response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
+    response = client.post('/endpoint', headers={'Authorization': '1234'}, json={
     "payload_fields": {"loop_time_s": "heey"},
     "metadata": {
         "frequency": "hey",
