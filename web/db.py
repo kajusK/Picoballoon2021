@@ -122,6 +122,7 @@ class Database:
 
     def fetch_all_data(self):
         data = self.__cursor.execute('SELECT * FROM data;').fetchall()
+        self.__connection.commit()
         data_ls = []
         for line in data:
             data_ls.append(list(line))

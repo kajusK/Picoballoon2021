@@ -1,37 +1,9 @@
-# To do list:
-    # create sqlite database ✓
-    # store data from cloud in database ✓
-        # adjust format to correspond actual data ✓
-        # estimate altitude from pressure ✓ --> need to be checked
-    # write tests ✓
-    # fill in Readme.md
-    # display web content to user
-        # related to map
-            # display map ✓
-            # send data to marker ✓
-            # add multiple markers ✓
-            # add trajectory ✓
-            # adjust size according to balloon route ✓
-        # display picture ✓ --> old one!
-        # display summary table ✓ ---> fixed size ✓
-        # display graphs of temperature and altitude in time x
-        # display basic info ✓ --> lorem for now
-        # make index.html responsive ✓
-        # make index.html pretty ✓
-    # if there are no data from gps, use lat, lon, alt from gateway ✓
-    # add security check into database ✓
-    # save incoming data to external files ✓
-    # format of incoming missing data?? --> zero, adapt Database ✓
-    # more tests ✓
-    # graph?
-
 import pathlib
 import secrets
 from datetime import datetime
 from flask import Flask, request, current_app, Response, render_template
 from db import Database
 from collections import defaultdict
-from datetime import datetime
 
 app = Flask(__name__)
 
@@ -47,6 +19,7 @@ def pretty_format(value, digits=None, suffix=None, divisor=None):
             return value
         else:
             return f'{value} {suffix}'
+
 
 def provide_data_markers():
     '''
@@ -184,35 +157,43 @@ def index():
 def endpoint():
     '''
     Save incoming data to a text file (with timestamp as a name)
-    Insert incoming data into database, pass them as a default dictionary (+ add current timestamp)
-    If everything goes smooth, return response status 200
+    If data are dictionary, insert them into database, pass them as a default dictionary (+ add current timestamp)
+    If everything goes smooth, return response status 200 (OK), else return 403 (Forbidden)
     '''
     # authorization header
     header = request.headers.get('Authorization')
     with open('token.txt') as f:
         token = f.read()
-    if secrets.compare_digest(header, token):
-        # obtain data
-        raw_data = request.get_json(force=True)
-        # save data externally
-        timestamp = datetime.timestamp(datetime.now())
-        with open(f'cloud_data/{timestamp}.txt', 'w') as new_file:
-            print(raw_data, file=new_file)
-        # pass data to database (as default dictionary)
-        received_data = defaultdict(lambda: None)
-        received_data.update(raw_data)
-        received_data['timestamp'] = timestamp      # add current timestamp
-        current_app.db.prepare_data(received_data)
-        # everything goes fine = return 200
-        status_code = Response(status=200)
+    if type(header) == str:
+        if secrets.compare_digest(header, token):
+            # obtain data
+            raw_data = request.get_json(force=True)
+            # save data externally
+            timestamp = datetime.timestamp(datetime.now())
+            with open(f'cloud_data/{timestamp}.txt', 'w') as new_file:
+                print(raw_data, file=new_file)
+            # pass data to database (as default dictionary)
+            if type(raw_data) == dict:
+                received_data = defaultdict(lambda: None)
+                received_data.update(raw_data)
+                received_data['timestamp'] = timestamp      # add current timestamp
+                current_app.db.prepare_data(received_data)
+                # everything goes fine = return 200
+                status_code = Response(status=200)
+            else:
+                # wrong data format
+                status_code = Response(status=403)
+        else:
+            # wrong token
+            status_code = Response(status=403)
     else:
-        # wrong token
+        # missing header
         status_code = Response(status=403)
     return status_code
 
 
 if __name__ == '__main__':
     path = str(pathlib.Path().resolve())
-    with app.app_context():                 # management of the application context
-        current_app.db = Database(path)     # proxy to the application handling the current request
-    app.run(debug=False)                    # must be disabled!
+    with app.app_context():
+        current_app.db = Database(path)
+    app.run(debug=False)
