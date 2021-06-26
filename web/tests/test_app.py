@@ -34,7 +34,7 @@ def test_db_private_attributes(db):
 
 
 def test_endpoint_returns_200(client):
-    '''Endpoint receives data and return status_code 200'''
+    '''Endpoint receives data and return status_code 200 - when authorization token is correct'''
     response = client.post('/endpoint', headers= {'Authorization': '1234'}, json={
     "app_id": "picoballoon2021",
     "dev_id": "probe",
@@ -123,6 +123,7 @@ def test_endpoint_passes_data(client, db):
             assert value != 'None'
     assert response.status_code == 200
 
+
 def test_endpoint_save_externally(client, db):
     '''Endpoint saves incoming json to a new file'''
     from datetime import datetime
@@ -132,6 +133,29 @@ def test_endpoint_save_externally(client, db):
     timestamp = last_input[0][0]
     assert path.exists(f"cloud_data/{timestamp}.txt") is True
     assert response.status_code == 200
+
+
+def test_endpoint_no_authorization(client, db):
+    '''Endpoint can handle missing headers - and deny access'''
+    response = client.post('/endpoint', json={})
+    for data_row in db.fetch_all_data():
+        for value in data_row[1:1]:     # except timestamp and json
+            assert value == 'None'
+    assert response.status_code == 403
+
+
+def test_endpoint_wrong_json(client):
+    '''Endpoint can handle invalid json and deny access'''
+    response = client.post('/endpoint', json={'hello':'hi', '123':'hello',})
+    assert response.status_code == 403
+
+
+def test_endpoint_wrong_data(client):
+    '''Endpoint can handle invalid input and deny access'''
+    response = client.post('/endpoint', data='[1, 2, 3]')
+    assert response.status_code == 403
+    response = client.post('/endpoint', data='')
+    assert response.status_code == 403
 
 
 def test_database_no_gps(client, db):

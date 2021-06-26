@@ -184,29 +184,37 @@ def index():
 def endpoint():
     '''
     Save incoming data to a text file (with timestamp as a name)
-    Insert incoming data into database, pass them as a default dictionary (+ add current timestamp)
-    If everything goes smooth, return response status 200
+    If data are dictionary, insert them into database, pass them as a default dictionary (+ add current timestamp)
+    If everything goes smooth, return response status 200 (OK), else return 403 (Forbidden)
     '''
     # authorization header
     header = request.headers.get('Authorization')
     with open('token.txt') as f:
         token = f.read()
-    if secrets.compare_digest(header, token):
-        # obtain data
-        raw_data = request.get_json(force=True)
-        # save data externally
-        timestamp = datetime.timestamp(datetime.now())
-        with open(f'cloud_data/{timestamp}.txt', 'w') as new_file:
-            print(raw_data, file=new_file)
-        # pass data to database (as default dictionary)
-        received_data = defaultdict(lambda: None)
-        received_data.update(raw_data)
-        received_data['timestamp'] = timestamp      # add current timestamp
-        current_app.db.prepare_data(received_data)
-        # everything goes fine = return 200
-        status_code = Response(status=200)
+    if type(header) == str:
+        if secrets.compare_digest(header, token):
+            # obtain data
+            raw_data = request.get_json(force=True)
+            # save data externally
+            timestamp = datetime.timestamp(datetime.now())
+            with open(f'cloud_data/{timestamp}.txt', 'w') as new_file:
+                print(raw_data, file=new_file)
+            # pass data to database (as default dictionary)
+            if type(raw_data) == dict:
+                received_data = defaultdict(lambda: None)
+                received_data.update(raw_data)
+                received_data['timestamp'] = timestamp      # add current timestamp
+                current_app.db.prepare_data(received_data)
+                # everything goes fine = return 200
+                status_code = Response(status=200)
+            else:
+                # wrong data format
+                status_code = Response(status=403)
+        else:
+            # wrong token
+            status_code = Response(status=403)
     else:
-        # wrong token
+        # missing header
         status_code = Response(status=403)
     return status_code
 
