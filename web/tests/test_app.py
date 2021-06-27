@@ -144,18 +144,12 @@ def test_endpoint_no_authorization(client, db):
     assert response.status_code == 403
 
 
-def test_endpoint_wrong_json(client):
-    '''Endpoint can handle invalid json and deny access'''
-    response = client.post('/endpoint', json={'hello':'hi', '123':'hello',})
-    assert response.status_code == 403
-
-
 def test_endpoint_wrong_data(client):
     '''Endpoint can handle invalid input and deny access'''
-    response = client.post('/endpoint', data='[1, 2, 3]')
-    assert response.status_code == 403
-    response = client.post('/endpoint', data='')
-    assert response.status_code == 403
+    response = client.post('/endpoint', headers={'Authorization': 'Basic Zm9vOmJhcg=='}, data='[1, 2, 3]')
+    assert response.status_code == 400
+    response = client.post('/endpoint', headers={'Authorization': 'Basic Zm9vOmJhcg=='}, data='')
+    assert response.status_code == 400
 
 
 def test_database_no_gps(client, db):
@@ -329,3 +323,44 @@ def test_database_strings_invalid(client, db):
         _, _, _, _, _, _, _, _, loop_time, lat_gw, lon_gw, _, freq, rssi = data_row[:-1]
         assert [lat_gw, lon_gw, freq, loop_time] == ['None', 'None', 'None', 'None']
     assert response.status_code == 200
+
+
+def test_app_temp_correct(client, db, app):
+    '''App will use valid temperature'''
+    from app import provide_data
+    response = client.post('/endpoint', headers={'Authorization': 'Basic Zm9vOmJhcg=='}, json={
+    "payload_fields": {
+        "core_temp_c": 30,
+        "temp_c": 20
+        },
+    })
+    data = provide_data()
+    temp = data[0][2]
+    assert temp == "20.0 °C"
+
+
+def test_app_temp_invalid(client, db, app):
+    '''App will use core temperature instead of temperature if needed'''
+    from app import provide_data
+    response = client.post('/endpoint', headers={'Authorization': 'Basic Zm9vOmJhcg=='}, json={
+    "payload_fields": {
+        "core_temp_c": 30,
+        "temp_c": 200
+        },
+    })
+    data = provide_data()
+    temp = data[0][2]
+    assert temp == "30.0 °C"
+
+def test_app_temp_missing(client, db, app):
+    '''App cannot use any temperature, since both are invalid'''
+    from app import provide_data
+    response = client.post('/endpoint', headers={'Authorization': 'Basic Zm9vOmJhcg=='}, json={
+    "payload_fields": {
+        "core_temp_c": -110,
+        "temp_c": 51
+        },
+    })
+    data = provide_data()
+    temp = data[0][2]
+    assert temp == "missing"

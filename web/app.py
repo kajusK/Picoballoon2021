@@ -114,12 +114,11 @@ def provide_data():
             alt = round((145366.45 * (1 - pow(pressure / 101325, 0.190284))) / 3.2808)
         if temp != 'None' and core_temp != 'None':
             # use temperature of core for nonsense temperatures values
-            if temp in range(-100, 50):
-                pass
-            elif temp not in range(-100, 50) and core_temp in range(-100, 50):
-                temp = core_temp
-            else:   # cannot use temperature of core, discard value
-                temp = 'None'
+            if temp < -100 or temp > 50:
+                if core_temp > -100 and core_temp < 50:
+                    temp = core_temp
+                else:    # cannot use temperature of core, discard value
+                    temp = 'None'
         # pretty formatting
         time = datetime.fromtimestamp(timestamp).strftime("%d.%m. %H:%M")
         pressure = pretty_format(pressure, digits=2, suffix='HPa', divisor=100)
