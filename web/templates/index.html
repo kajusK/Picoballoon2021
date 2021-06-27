@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
+    <title>Picoballoon 2021</title>
+    <script src="https://api.mapy.cz/loader.js"></script>
+    <script type="text/javascript">Loader.lang = "en"; Loader.load()</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <br><br>
+        <h1 class="p-3 mb-2 bg-info text-dark text-center" > Picoballoon 2021 </h1>
+        <br><br>
+        <div class="row">
+            <div class="col-sm-6">
+                <div id="mapa" style="width:100%; height:500px;" class="smap smap-defaults"></div>
+                <script> var data_markers = {{ data_markers|tojson }}; </script>
+                <script type="text/javascript">
+                    // set map
+                    var center = SMap.Coords.fromWGS84(16.60796, 49.19522);
+                    var map = new SMap(JAK.gel("mapa"), center, 10);
+                    map.addDefaultLayer(SMap.DEF_BASE).enable();
+                    map.addDefaultControls();
+
+                    // layers for markers and route
+                    var layer_markers = new SMap.Layer.Marker();
+                    var layer_route = new SMap.Layer.Geometry();
+                    map.addLayer(layer_markers);
+                    map.addLayer(layer_route);
+                    layer_markers.enable();
+                    layer_route.enable();
+                    var route = [];
+
+                    // loop for adding markers to map and fill in route
+                    for (const data of data_markers){
+                        // unpack
+                        let marker_id, time, card_body, lon, lat;
+                        [marker_id, time, card_body, lon, lat] = data;
+                        // set card properties
+                        var card = new SMap.Card();
+                        card.setSize(230, 242);     // width, height
+                        card.getHeader().innerHTML =  time;
+                        card.getBody().innerHTML = card_body;
+                        // add marker
+                        pos = SMap.Coords.fromWGS84(lon, lat);
+                        var marker = new SMap.Marker(pos, marker_id, {});
+                        marker.decorate(SMap.Marker.Feature.Card, card);
+                        layer_markers.addMarker(marker);
+                        // add position to route
+                        route.push(pos);
+
+                    }
+                    // display route
+                    var options_route = {
+                        color: "#3e3838",
+                        width: 3
+                    };
+                    var polyline = new SMap.Geometry(SMap.GEOMETRY_POLYLINE, null, route, options_route);
+                    layer_route.addGeometry(polyline);
+
+                    var centered_map = map.computeCenterZoom(route);  // center map, so all markers are visible
+                    map.setCenterZoom(centered_map[0], centered_map[1]);
+
+                </script>
+                <br><h4 class="p-3 mb-2 bg-info text-dark">Received data</h4>
+                <div class="table-responsive" style="height:890px;">
+                    <table class="table table-hover table-sm caption-top">
+                        <thead style="position: sticky;top: 0" class="table table-light">
+                        <tr>
+                            <th scope="col">Time</th>
+                            <th scope="col">Pressure</th>
+                            <th scope="col">Temperature</th>
+                            <th scope="col">Altitude</th>
+                            <th scope="col">Latitude</th>
+                            <th scope="col">Longitude</th>
+                            <th scope="col">Battery</th>
+                        </tr>
+                        </thead>
+                        {% for item in data_table %}
+                        <tbody>
+                        <tr>
+                            <td>{{item[0]}}</td>
+                            <td>{{item[1]}}</td>
+                            <td>{{item[2]}}</td>
+                            <td>{{item[3]}}</td>
+                            <td>{{item[4]}}</td>
+                            <td>{{item[5]}}</td>
+                            <td>{{item[6]}}</td>
+                        </tr>
+                        </tbody>
+                        {% endfor %}
+                    </table>
+                </div>
+                <br><br>
+            </div>
+            <div class="col-sm-6">
+                <div>
+                    <h4 class="p-3 mb-2 bg-info text-dark">About</h4>
+                    <p class="text-justify">Lorem ipsum dolor sit amet consectetur adipisicing elit.
+                        Totam ut ad, suscipit placeat commodi voluptatibus officia quas vitae nisi
+                        magnam veniam fugiat excepturi eaque obcaecati pariatur quisquam molestiae perspiciatis.
+                        Distinctio. Lorem ipsum dolor sit, amet consectetur adipisicing elit. Voluptatem, dicta
+                        sed cupiditate tenetur atque quam eligendi, nesciunt magni possimus facere
+                        quisquam velit aliquam adipisci dignissimos pariatur at? Eum, odio amet!</p>
+                </div>
+                <h4 class="p-3 mb-2 bg-info text-dark">Probe</h4>
+                <img src="{{ url_for('static', filename='probe.jpg') }}" class="img-fluid" alt="Responsive image">
+                <br><br>
+                <h4 class="p-3 mb-2 bg-info text-dark">Temperature and altitude in time</h4>
+                <div class="card chart-container">
+                    <canvas id="chart_temperature"></canvas>
+                </div>
+
+               <script> var data_temp_time = {{ data_temp_time|tojson }};</script>
+               <script> var data_temp = {{ data_temp|tojson }};</script>
+
+               <script>
+                const ctx_temp = document.getElementById("chart_temperature").getContext('2d');
+                const chart_temperature = new Chart(ctx_temp, {
+                  type: 'line',
+                  data: {
+                    labels: data_temp_time,
+                    datasets: [{
+                      label: 'Temperature',
+                      backgroundColor: 'rgba(191, 239, 255)',
+                      borderColor: 'rgb(13, 202, 240)',
+                      data: data_temp,
+                    }]
+                  },
+                  options: {
+                    scales: {
+                      yAxes: [{
+                        ticks: {
+                          beginAtZero: true,
+                        }
+                      }]
+                    }
+                  },
+                });
+                </script>
+                <br><br>
+                <div class="card chart-container">
+                    <canvas id="chart_altitude"></canvas>
+                </div>
+
+                <script> var data_alt_time = {{ data_alt_time|tojson }};</script>
+                <script> var data_alt = {{ data_alt|tojson }};</script>
+
+                <script>
+                    const ctx_alt = document.getElementById("chart_altitude").getContext('2d');
+                    const chart_altitude = new Chart(ctx_alt, {
+                    type: 'line',
+                    data: {
+                        labels: data_alt_time,
+                        datasets: [{
+                        label: 'Altitude',
+                        backgroundColor: 'rgba(191, 239, 255)',
+                        borderColor: 'rgb(13, 202, 240)',
+                        data: data_alt,
+                        }]
+                    },
+                    options: {
+                        scales: {
+                        yAxes: [{
+                            ticks: {
+                            beginAtZero: true,
+                            }
+                        }]
+                        }
+                    },
+                    });
+            </script>
+            <br><br>
+            </div>
+        </div>
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-gtEjrD/SeCtmISkJkNUaaKMoLD0//ElJ19smozuHV6z3Iehds+3Ulb9Bn9Plx0x4" crossorigin="anonymous"></script>
+</body>
+</html>
+
+
