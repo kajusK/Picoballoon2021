@@ -1,5 +1,6 @@
 import pathlib
 import secrets
+import os
 from datetime import datetime
 from flask import Flask, request, current_app, Response, render_template
 from db import Database
@@ -103,7 +104,7 @@ def provide_data():
     If outside temperature seems to be invalid, use temperature of core.
     If altitude is None, calculate it from pressure.
     '''
-    data_raw = Database.get_db(app.config['DATABASE_PATH']).fetch_all_data()
+    data_raw = Database(app.config['DATABASE_PATH']).fetch_all_data()
     data = []
     for row in data_raw:
         timestamp, pressure, temp, core_temp, alt, lat, lon, bat_mv, loop_time, lat_gw, lon_gw, alt_gw = row[:-3]
@@ -171,14 +172,17 @@ def endpoint():
             raw_data = request.get_json(force=True)
             # save data externally
             timestamp = datetime.timestamp(datetime.now())
-            with open(f'''{app.config['DATABASE_PATH']}/cloud_data/{timestamp}.txt''', 'w') as new_file:
+            time = datetime.fromtimestamp(timestamp).strftime("%d.%m. %H:%M")
+            if os.path.exists(f"""{app.config["DATABASE_PATH"]}/cloud_data/""") is False:
+                os.mkdir(f"""{app.config["DATABASE_PATH"]}/cloud_data/""")
+            with open(f'''{app.config['DATABASE_PATH']}/cloud_data/{time}.txt''', 'w') as new_file:
                 print(raw_data, file=new_file)
             # pass data to database (as default dictionary)
             if type(raw_data) == dict:
                 received_data = defaultdict(lambda: None)
                 received_data.update(raw_data)
                 received_data['timestamp'] = timestamp      # add current timestamp
-                Database.get_db(app.config['DATABASE_PATH']).prepare_data(received_data)
+                Database(app.config['DATABASE_PATH']).prepare_data(received_data)
                 # everything goes fine = return 200
                 status_code = Response(status=200)
             else:
