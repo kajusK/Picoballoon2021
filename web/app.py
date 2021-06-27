@@ -6,6 +6,8 @@ from db import Database
 from collections import defaultdict
 
 app = Flask(__name__)
+app.config['DATABASE_PATH'] = str(pathlib.Path().resolve())
+
 
 def pretty_format(value, digits=None, suffix=None, divisor=None):
     if value == 'None':
@@ -192,5 +194,4 @@ def endpoint():
 
 
 if __name__ == '__main__':
-    app.config['DATABASE_PATH'] = str(pathlib.Path().resolve())
     app.run(debug=False)
