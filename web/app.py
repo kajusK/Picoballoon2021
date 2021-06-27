@@ -142,7 +142,7 @@ def index():
         - markers and their cards
         - graphs of development of temperature and altitude
     '''
-    data_table = provide_data_table()
+    data_table = provide_data_table()[::-1]
     data_markers = provide_data_markers()
     data_temp_time, data_temp, data_alt_time, data_alt = provide_data_graph()
     return render_template('index.html',
