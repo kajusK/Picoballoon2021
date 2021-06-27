@@ -9,10 +9,6 @@ class Database:
         self.__cursor = self.__connection.cursor()
         self.create_database_structure()
 
-    def get_db(DATABASE_PATH):
-        db = Database(DATABASE_PATH)
-        return db
-
     def create_database_structure(self):
         self.__cursor.execute('''
             CREATE TABLE IF NOT EXISTS data (
