@@ -52,7 +52,7 @@
 
 /** LoRa packet payload format */
 typedef struct {
-    uint16_t press_daPa;    /** Air pressure in deca Pascals (*10) */
+    uint32_t press_Pa;      /** Air pressure in deca Pascals (*10) */
     int16_t temp_dc;        /** Temperature in deci Celsius (/10) */
     int8_t core_temp_c;     /** MCU core temperature in degrees Celsius */
     uint16_t bat_mv;        /**< Voltage of the battery/supercap */
@@ -153,21 +153,29 @@ static void App_LoadPersistentData(uint32_t *counter, rfm_lora_region_t *region)
     const persist_data_t *data;
 
     if (persist1.counter == (uint32_t)-1 && persist2.counter == (uint32_t)-1) {
-        *counter = 0;
-        *region = RFM_REGION_EU863;
+        if (counter != NULL) {
+            *counter = 0;
+        }
+        if (region != NULL) {
+            *region = RFM_REGION_EU863;
+        }
         return;
     } else if (persist1.counter == (uint32_t)-1) {
         data = &persist2;
     } else if (persist2.counter == (uint32_t)-1) {
         data = &persist1;
     } else if (persist1.counter > persist2.counter) {
-        data = &persist2;
-    } else {
         data = &persist1;
+    } else {
+        data = &persist2;
     }
 
-    *counter = data->counter;
-    *region = data->region;
+    if (counter != NULL) {
+        *counter = data->counter;
+    }
+    if (region != NULL) {
+        *region = data->region;
+    }
 }
 
 static void App_GpsOn(void)
@@ -259,10 +267,10 @@ static void App_Loop(void)
     Adcd_Sleep();
 
     if (!MS5607_Read(&ms5607_desc, MS5607_OSR1024, &press_Pa, &temp_mdeg)) {
-        packet.press_daPa = 0;
+        packet.press_Pa = 0;
         packet.temp_dc = 0;
     } else {
-        packet.press_daPa = press_Pa / 10;
+        packet.press_Pa = press_Pa;
         packet.temp_dc = temp_mdeg / 100;
     }
 
@@ -292,7 +300,7 @@ static void App_Loop(void)
     packet.loop_time_s = time_elapsed_s(&tm);
 
     Log_Info(NULL, "TX counter %d", tx_counter);
-    Log_Info(NULL, "Pressure %d Pa", packet.press_daPa*10);
+    Log_Info(NULL, "Pressure %d Pa", packet.press_Pa);
     Log_Info(NULL, "Temperature %d C", packet.temp_dc/10);
     Log_Info(NULL, "Core temp %d C", packet.core_temp_c);
     Log_Info(NULL, "Battery voltage %d mV", packet.bat_mv);
