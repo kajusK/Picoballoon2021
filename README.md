@@ -43,6 +43,17 @@ trace impedance, but it should not be that significant.
 The programming and debug uart connectors are separated from the main layout
 and this piece of the PCB will be snapped off before launch to reduce weight.
 
+**Power consumption** with 3 V power supply
+  * board topped at 50 mA with GPS searching for satellites, RFM in standby and MCU running
+  * 7,3 mA with GPS powered off
+  * 5,3 mA with RFM95 in sleep mode and GPS off
+  * 45 uA with devices powered off
+
+**Weight**
+  * 10 g - Battery
+  * ~3 g - Probe PCB with programming header
+  * TODO g - Take off weight officially measured
+
 Frontend
 --------
 Data received by [TTN](https://www.thethingsnetwork.org/) are sent over
@@ -51,3 +62,14 @@ auth header and stores data in sqlite database.
 
 User frontend is written in python, it shows all received packets, flight route
 and current position on a [map](https://api.mapy.cz).
+The tracker is available at [bal.deadbadger](https://bal.deadbadger.cz)
+
+To run the frontend in docker, run
+```
+docker build -t picoballon .
+mkdir /srv/probe
+touch /srv/probe/database.sqlite
+# set token to use in auth header
+echo "someuser:somepassword" > /srv/probe/token.txt
+docker run -v /srv/probe/data:/project/cloud_data --mount type=bind,source=/srv/probe/database.sqlite,target=/project/database.sqlite --mount type=bind,source=/srv/probe/credentials.txt,target=/project/credentials.txt -p 8081:80 --name picoballon -d picoballon
+```
