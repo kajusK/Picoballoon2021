@@ -52,7 +52,7 @@ and this piece of the PCB will be snapped off before launch to reduce weight.
 **Weight**
   * 10 g - Battery
   * ~3 g - Probe PCB with programming header
-  * TODO g - Take off weight officially measured
+  * 12,39 g - Take off weight, officially measured
 
 Frontend
 --------
