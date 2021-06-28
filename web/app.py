@@ -192,5 +192,29 @@ def endpoint():
     return status_code
 
 
+def upload_data():
+    import dateutil.parser
+    from collections import OrderedDict
+    global_dict = OrderedDict()
+    files = os.listdir(f"""{app.config["DATABASE_PATH"]}/cloud_data/""")
+    for one_file in files:
+        if one_file.startswith('.'):
+            continue
+        with open(f"""{app.config["DATABASE_PATH"]}/cloud_data/{one_file}""") as f:
+            string = f.read()
+            json = eval(string)
+            iso_8601 = json['metadata']['time']
+            datetime_object = dateutil.parser.isoparse(iso_8601)
+            timestamp = datetime_object.timestamp()
+            global_dict[timestamp] = json
+    sorted_dict = OrderedDict(sorted(global_dict.items()))
+    for timestamp, raw_data in sorted_dict.items():
+        received_data = defaultdict(lambda: None)
+        received_data.update(raw_data)
+        received_data['timestamp'] = timestamp      # add timestamp
+        Database(app.config['DATABASE_PATH']).prepare_data(received_data)
+
+upload_data()
+
 if __name__ == '__main__':
     app.run(debug=False)

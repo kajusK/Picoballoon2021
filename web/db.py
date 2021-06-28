@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from collections import defaultdict
 
 class Database:
@@ -34,20 +35,26 @@ class Database:
         return strongest gateway latitude, longitude, altitude and rssi
         if essential values are absent, return None
         '''
-        try:
-            for index, gateway in enumerate(metadata['gateways']):
-                if index == 0:
-                    strongest_gw = (gateway['rssi'], index)
-                elif gateway and (gateway['rssi'] > strongest_gw[0]):
-                    strongest_gw = (gateway['rssi'], index)
-            gw_data = metadata['gateways'][strongest_gw[1]]
-            lat_gw = gw_data['latitude']
-            lon_gw = gw_data['longitude']
-            alt_gw = gw_data['altitude']
-            rssi = strongest_gw[0]
-            return lat_gw, lon_gw, alt_gw, rssi
-        except KeyError:    # absent rssi / lat / lon
-            return None
+        rssi = None
+        lat_gw = None
+        lon_gw = None
+        alt_gw = None
+        for index, gw_dict in enumerate(metadata['gateways']):
+            gw_defdic = defaultdict(lambda: None)
+            gw_defdic.update(gw_dict)
+            if index == 0:
+                rssi = gw_defdic['rssi']
+                lat_gw = gw_defdic['latitude']
+                lon_gw = gw_defdic['longitude']
+                alt_gw = gw_defdic['altitude']
+            elif gw_defdic['latitude'] and gw_defdic['longitude']:
+                if gw_defdic['rssi'] > rssi:
+                    rssi = gw_defdic['rssi']
+                    lat_gw = gw_defdic['latitude']
+                    lon_gw = gw_defdic['longitude']
+                    alt_gw = gw_defdic['altitude']
+        return lat_gw, lon_gw, alt_gw, rssi
+
 
     def prepare_data(self, data):
         data_for_storing = {}
@@ -98,9 +105,9 @@ class Database:
         for key, value in data_for_storing.items():
             if value == 0 or type(value) == str:
                 data_for_storing[key] = None
-        self.store_data(data_for_storing)
+        self.store_data(data_for_storing, data)
 
-    def store_data(self, data):
+    def store_data(self, data, json):
         self.__cursor.execute(f'''
             INSERT INTO data VALUES (
             "{data['timestamp']}",
@@ -117,7 +124,7 @@ class Database:
             "{data['alt_gw']}",
             "{data['freq']}",
             "{data['rssi']}",
-            "{data}")''')
+            "{json}")''')
         self.__connection.commit()
 
     def fetch_all_data(self):
@@ -127,3 +134,4 @@ class Database:
         for line in data:
             data_ls.append(list(line))
         return data_ls
+
