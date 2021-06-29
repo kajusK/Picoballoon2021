@@ -55,7 +55,6 @@ class Database:
                     alt_gw = gw_defdic['altitude']
         return lat_gw, lon_gw, alt_gw, rssi
 
-
     def prepare_data(self, data):
         data_for_storing = {}
         keys = [

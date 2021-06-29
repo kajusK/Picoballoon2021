@@ -1,6 +1,7 @@
 import pathlib
 import secrets
 import os
+import sys
 from datetime import datetime
 from base64 import b64decode
 from flask import Flask, request, current_app, Response, render_template
@@ -214,7 +215,9 @@ def upload_data():
         received_data['timestamp'] = timestamp      # add timestamp
         Database(app.config['DATABASE_PATH']).prepare_data(received_data)
 
-upload_data()
 
 if __name__ == '__main__':
+    if count(sys.argv) == 2 and sys.argv[1] == '-u':
+        upload_data()
+
     app.run(debug=False)
